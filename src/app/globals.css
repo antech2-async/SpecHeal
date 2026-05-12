@@ -78,6 +78,40 @@ p {
   margin-top: 32px;
 }
 
+.demoThesis {
+  display: grid;
+  grid-template-columns: 1fr 1.25fr 1.25fr;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.demoThesis div,
+.selectedScenarioBrief div,
+.summaryCard {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(13, 18, 24, 0.86);
+  padding: 14px;
+}
+
+.demoThesis span,
+.selectedScenarioBrief span,
+.summaryCard span,
+.scenarioOutcome {
+  display: block;
+  color: var(--dim);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.demoThesis strong,
+.selectedScenarioBrief strong {
+  display: block;
+  margin-top: 6px;
+  line-height: 1.45;
+}
+
 .readinessItem {
   display: flex;
   gap: 12px;
@@ -262,6 +296,24 @@ p {
   cursor: pointer;
 }
 
+.scenarioOutcome {
+  width: fit-content;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-style: normal;
+}
+
+.scenarioOutcome.positive {
+  border-color: rgba(52, 211, 153, 0.45);
+  color: var(--heal);
+}
+
+.scenarioOutcome.negative {
+  border-color: rgba(255, 107, 107, 0.45);
+  color: var(--bug);
+}
+
 .scenarioOption.active,
 .scenarioOption:hover {
   border-color: var(--action);
@@ -326,6 +378,18 @@ p {
   padding: 12px 0;
 }
 
+.recentVerdict.positive {
+  color: var(--heal);
+}
+
+.recentVerdict.negative {
+  color: var(--bug);
+}
+
+.recentVerdict.warning {
+  color: var(--warning);
+}
+
 .emptyState {
   display: grid;
   min-height: 420px;
@@ -335,6 +399,12 @@ p {
   border-radius: 8px;
   background: rgba(13, 18, 24, 0.34);
   padding: 28px;
+}
+
+.selectedScenarioBrief {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .emptyState h2,
@@ -477,6 +547,56 @@ p {
   border-radius: 8px;
   background: #090e14;
   padding: 12px;
+}
+
+.executiveSummary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.summaryCard {
+  min-width: 0;
+  background:
+    linear-gradient(180deg, rgba(18, 26, 35, 0.94), rgba(9, 14, 20, 0.88));
+}
+
+.summaryCard strong {
+  display: block;
+  margin-top: 6px;
+  color: var(--text);
+  line-height: 1.35;
+}
+
+.summaryCard p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.summaryCard.positive {
+  border-color: rgba(52, 211, 153, 0.45);
+}
+
+.summaryCard.negative {
+  border-color: rgba(255, 107, 107, 0.45);
+}
+
+.summaryCard.warning {
+  border-color: rgba(245, 184, 75, 0.45);
+}
+
+.summaryCard.positive strong {
+  color: var(--heal);
+}
+
+.summaryCard.negative strong {
+  color: var(--bug);
+}
+
+.summaryCard.warning strong {
+  color: var(--warning);
 }
 
 .decisionNode {
@@ -677,6 +797,56 @@ p {
   margin: 0 0 10px;
   color: var(--dim);
   font-size: 14px;
+}
+
+.specPanel,
+.specHighlights {
+  display: grid;
+  gap: 10px;
+}
+
+.specHighlights {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.specHighlights div {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #090e14;
+  padding: 10px;
+}
+
+.specHighlights span {
+  display: block;
+  color: var(--spec);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.specHighlights strong {
+  display: block;
+  margin-top: 5px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.rawSpec {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #05080c;
+  padding: 10px;
+}
+
+.rawSpec summary {
+  cursor: pointer;
+  color: var(--spec);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.rawSpec[open] summary {
+  margin-bottom: 10px;
 }
 
 .codeBlock {
@@ -1079,7 +1249,11 @@ p {
   .workbench,
   .reportGrid,
   .metricStrip,
-  .decisionStrip {
+  .decisionStrip,
+  .demoThesis,
+  .executiveSummary,
+  .selectedScenarioBrief,
+  .specHighlights {
     grid-template-columns: 1fr;
   }
 

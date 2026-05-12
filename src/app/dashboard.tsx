@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ShopFlowScenario } from "@/demo/shopflow";
+import { formatRunDate } from "@/lib/display";
 import { RunReportView, type RunArtifacts, type SerializedRun } from "./run-view";
 
 type ReadinessItem = {
@@ -30,6 +31,12 @@ const RUN_STORY_PREVIEW = [
   ["05", "Proof", "Validate and rerun only when a safe HEAL patch exists."],
   ["06", "Jira", "Publish actionable results into the configured project."]
 ] as const;
+
+const SCENARIO_OUTCOMES: Record<string, { tone: string; value: string }> = {
+  "healthy-flow": { tone: "positive", value: "Report only" },
+  "locator-drift": { tone: "positive", value: "Safe HEAL proof" },
+  "product-bug": { tone: "negative", value: "Jira Bug" }
+};
 
 export function Dashboard({ initialRuns, readiness, scenarios }: DashboardProps) {
   const [selectedScenarioId, setSelectedScenarioId] = useState(scenarios[0]?.id);
@@ -136,6 +143,21 @@ export function Dashboard({ initialRuns, readiness, scenarios }: DashboardProps)
         </div>
       </section>
 
+      <section className="demoThesis" aria-label="Demo decision model">
+        <div>
+          <span>Question</span>
+          <strong>Should this failed UI test be healed?</strong>
+        </div>
+        <div>
+          <span>Guardrail</span>
+          <strong>OpenSpec checks product behavior before any patch is trusted.</strong>
+        </div>
+        <div>
+          <span>Proof</span>
+          <strong>Browser validation and rerun decide whether the patch is safe.</strong>
+        </div>
+      </section>
+
       <section className="readiness" aria-label="Runtime readiness">
         {readiness.map((item) => (
           <div className="readinessItem" key={item.name}>
@@ -166,6 +188,9 @@ export function Dashboard({ initialRuns, readiness, scenarios }: DashboardProps)
                 type="button"
                 onClick={() => setSelectedScenarioId(scenario.id)}
               >
+                <em className={`scenarioOutcome ${SCENARIO_OUTCOMES[scenario.id]?.tone ?? "neutral"}`}>
+                  {SCENARIO_OUTCOMES[scenario.id]?.value ?? "Decision"}
+                </em>
                 <span>{scenario.title}</span>
                 <strong>{scenario.label}</strong>
                 <small>{scenario.summary}</small>
@@ -195,8 +220,13 @@ export function Dashboard({ initialRuns, readiness, scenarios }: DashboardProps)
               recentRuns.map((run) => (
                 <a className="recentRun" href={`/runs/${run.id}`} key={run.id}>
                   <span>{run.scenarioId}</span>
-                  <strong>{run.verdict ?? run.status}</strong>
-                  <small>{new Date(run.createdAt).toLocaleString()}</small>
+                  <strong className={`recentVerdict ${getRunTone(run)}`}>
+                    {run.verdict ?? run.status}
+                  </strong>
+                  <small>
+                    {run.candidateSelector ? `${run.candidateSelector} · ` : ""}
+                    {formatRunDate(run.createdAt)}
+                  </small>
                 </a>
               ))
             )}
@@ -217,6 +247,20 @@ export function Dashboard({ initialRuns, readiness, scenarios }: DashboardProps)
                 <h2>{selectedScenario?.title ?? "Select a scenario"}</h2>
                 <p>{selectedScenario?.summary}</p>
               </div>
+              <div className="selectedScenarioBrief">
+                <div>
+                  <span>Baseline selector</span>
+                  <strong>{selectedScenario?.oldSelector ?? "n/a"}</strong>
+                </div>
+                <div>
+                  <span>Expected behavior</span>
+                  <strong>{selectedScenario?.expectedText ?? "Payment Success"}</strong>
+                </div>
+                <div>
+                  <span>Expected decision</span>
+                  <strong>{selectedScenario ? SCENARIO_OUTCOMES[selectedScenario.id]?.value : "Decision"}</strong>
+                </div>
+              </div>
               <div className="previewFlow" aria-label="SpecHeal run preview">
                 {RUN_STORY_PREVIEW.map(([index, title, summary]) => (
                   <div className="previewStep" key={index}>
@@ -234,4 +278,20 @@ export function Dashboard({ initialRuns, readiness, scenarios }: DashboardProps)
       </section>
     </main>
   );
+}
+
+function getRunTone(run: SerializedRun) {
+  if (run.verdict === "PRODUCT BUG" || run.verdict === "RUN_ERROR" || run.status === "failed") {
+    return "negative";
+  }
+
+  if (run.verdict === "SPEC OUTDATED") {
+    return "warning";
+  }
+
+  if (run.verdict === "HEAL" || run.verdict === "NO_HEAL_NEEDED") {
+    return "positive";
+  }
+
+  return "neutral";
 }

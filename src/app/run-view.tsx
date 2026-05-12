@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { ReactNode } from "react";
+import { formatRunDate } from "@/lib/display";
 import type { RunReport, RunTimelineEvent } from "@/lib/specheal/run-report";
 
 export type SerializedRun = {
@@ -116,6 +117,8 @@ export function RunReportView({ run, artifacts, mode }: RunReportViewProps) {
         />
       </section>
 
+      <ExecutiveSummary jira={latestJira} run={run} />
+
       <DecisionStrip jira={latestJira} run={run} />
 
       {run.verdict === "NO_HEAL_NEEDED" ? (
@@ -132,7 +135,7 @@ export function RunReportView({ run, artifacts, mode }: RunReportViewProps) {
             <div>
               <strong>{event.title}</strong>
               <p>{event.detail}</p>
-              <small>{new Date(event.timestamp).toLocaleString()}</small>
+              <small>{formatRunDate(event.timestamp)}</small>
             </div>
           </div>
         ))}
@@ -155,8 +158,7 @@ export function RunReportView({ run, artifacts, mode }: RunReportViewProps) {
         </Panel>
 
         <Panel eyebrow="02" title="OpenSpec">
-          <p className="pathText">{report.openSpec.path}</p>
-          <pre className="codeBlock">{report.openSpec.clause}</pre>
+          <OpenSpecPanel clause={report.openSpec.clause} path={report.openSpec.path} />
         </Panel>
 
         <Panel eyebrow="03" title="Evidence">
@@ -239,6 +241,50 @@ function Panel({
       <h3>{title}</h3>
       {children}
     </section>
+  );
+}
+
+function ExecutiveSummary({
+  jira,
+  run
+}: {
+  jira: JiraResultArtifact | null;
+  run: SerializedRun;
+}) {
+  const summary = getExecutiveSummary(run, jira);
+
+  return (
+    <section className="executiveSummary" aria-label="Run executive summary">
+      {summary.map((item) => (
+        <div className={`summaryCard ${item.tone}`} key={item.label}>
+          <span>{item.label}</span>
+          <strong>{item.value}</strong>
+          <p>{item.detail}</p>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function OpenSpecPanel({ clause, path }: { clause: string; path: string }) {
+  const highlights = getOpenSpecHighlights(clause);
+
+  return (
+    <div className="specPanel">
+      <p className="pathText">{path}</p>
+      <div className="specHighlights">
+        {highlights.map((highlight) => (
+          <div key={highlight}>
+            <span>Requirement</span>
+            <strong>{highlight}</strong>
+          </div>
+        ))}
+      </div>
+      <details className="rawSpec">
+        <summary>View raw OpenSpec clause</summary>
+        <pre className="codeBlock">{clause}</pre>
+      </details>
+    </div>
   );
 }
 
@@ -707,4 +753,134 @@ function getDisplayTimeline(run: SerializedRun): RunTimelineEvent[] {
 
 function cleanDisplayText(value: string) {
   return value.replace(/\u001b\[[0-9;]*m/g, "").trim();
+}
+
+function getOpenSpecHighlights(clause: string) {
+  const requirements = clause
+    .split("\n")
+    .filter((line) => line.startsWith("### Requirement: "))
+    .map((line) => line.replace("### Requirement: ", "").trim())
+    .filter(Boolean);
+
+  return requirements.slice(0, 4);
+}
+
+function getExecutiveSummary(run: SerializedRun, jira: JiraResultArtifact | null) {
+  const report = run.report;
+  const failedSelector = report.evidence?.failedSelector ?? run.baselineSelector ?? "#pay-now";
+  const candidate = run.candidateSelector ?? report.validation?.selector ?? "no safe candidate";
+  const jiraValue = jira?.issueKey ?? jira?.status ?? "not published";
+
+  if (run.verdict === "HEAL") {
+    return [
+      {
+        detail: `Baseline failed at ${failedSelector}, but checkout behavior still exists.`,
+        label: "Failure type",
+        tone: "neutral",
+        value: "Locator drift"
+      },
+      {
+        detail: `Validated ${candidate} in the browser, then reran the patched Playwright test.`,
+        label: "Trust proof",
+        tone: "positive",
+        value: "Validation + rerun passed"
+      },
+      {
+        detail: `Review the generated test patch and Jira Task ${jiraValue}.`,
+        label: "Next action",
+        tone: "positive",
+        value: "Apply patch through review"
+      }
+    ] as const;
+  }
+
+  if (run.verdict === "PRODUCT BUG") {
+    return [
+      {
+        detail: `Baseline failed at ${failedSelector} and no valid payment action was available.`,
+        label: "Failure type",
+        tone: "negative",
+        value: "Product behavior missing"
+      },
+      {
+        detail: "OpenSpec requires an enabled payment action, so healing the selector would hide the bug.",
+        label: "Guardrail",
+        tone: "negative",
+        value: "Patch blocked"
+      },
+      {
+        detail: `Fix the checkout payment behavior from Jira Bug ${jiraValue}.`,
+        label: "Next action",
+        tone: "negative",
+        value: "Escalate product bug"
+      }
+    ] as const;
+  }
+
+  if (run.verdict === "NO_HEAL_NEEDED") {
+    return [
+      {
+        detail: "The original Playwright path reached Payment Success.",
+        label: "Failure type",
+        tone: "positive",
+        value: "No failure"
+      },
+      {
+        detail: "AI recovery, validation, patch, and rerun are intentionally skipped.",
+        label: "Guardrail",
+        tone: "neutral",
+        value: "Report-only audit"
+      },
+      {
+        detail: "Keep this run as evidence that the checkout baseline is healthy.",
+        label: "Next action",
+        tone: "positive",
+        value: "No Jira required"
+      }
+    ] as const;
+  }
+
+  if (run.verdict === "SPEC OUTDATED") {
+    return [
+      {
+        detail: "The current test/spec mapping no longer explains the intended behavior.",
+        label: "Failure type",
+        tone: "warning",
+        value: "Spec alignment issue"
+      },
+      {
+        detail: "SpecHeal blocks locator patching until the requirement is reviewed.",
+        label: "Guardrail",
+        tone: "warning",
+        value: "Human review required"
+      },
+      {
+        detail: `Use Jira Task ${jiraValue} to update the spec or test mapping.`,
+        label: "Next action",
+        tone: "warning",
+        value: "Review requirements"
+      }
+    ] as const;
+  }
+
+  return [
+    {
+      detail: run.errorMessage ?? "The run is still pending or stopped before a trusted result.",
+      label: "Status",
+      tone: run.status === "failed" ? "negative" : "neutral",
+      value: run.status
+    },
+    {
+      detail: run.failedStage ?? "SpecHeal has not produced a terminal verdict yet.",
+      label: "Stage",
+      tone: "neutral",
+      value: run.failedStage ?? "waiting"
+    },
+    {
+      detail: "Resolve the runtime issue, then retry the scenario.",
+      label: "Next action",
+      tone: "neutral",
+      value: "Investigate"
+    }
+  ] as const;
 }
