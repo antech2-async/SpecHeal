@@ -25,6 +25,7 @@ const jiraSource = read("src/lib/specheal/jira.ts");
 const openAiSource = read("src/lib/specheal/openai-verdict.ts");
 const openSpecLoaderSource = read("src/lib/specheal/openspec.ts");
 const orchestratorSource = read("src/lib/specheal/orchestrator.ts");
+const proofSource = read("src/lib/specheal/proof.ts");
 const runsSource = read("src/lib/specheal/runs.ts");
 const runViewSource = read("src/app/run-view.tsx");
 
@@ -156,6 +157,24 @@ check(
     !openAiSource.includes("fallbackVerdict") &&
     !openAiSource.includes("deterministic"),
   "Failed AI calls must surface operational failure instead of a hardcoded verdict."
+);
+
+check(
+  "Controlled HEAL patches are canonical click actions",
+  assertIncludes(proofSource, [
+    "selectorToPlaywrightClickLine(options.selector)",
+    "assertControlledClickLine(newLine)",
+    "repairControlledActionRegion(source, oldLine)",
+    "getByTestId",
+    "getByRole",
+    ".click();"
+  ]) &&
+    !proofSource.includes("options.verdict.patch?.newLine?.trim()") &&
+    assertIncludes(runViewSource, [
+      "blocked until rerun proof passes",
+      "Patch preview is blocked because rerun proof did not reach the required success state."
+    ]),
+  "AI may select a candidate, but SpecHeal must own the executable Playwright click patch and explain blocked previews."
 );
 
 check(

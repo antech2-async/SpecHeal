@@ -692,10 +692,23 @@ function ProofPanel({ run }: { run: SerializedRun }) {
           value={report.rerun ? (report.rerun.passed ? "Passed" : "Failed") : "Pending"}
         />
         <ProofStep
-          detail={report.patch?.explanation ?? "Patch preview appears only after validation and rerun pass."}
+          detail={
+            report.patch?.explanation ??
+            (report.rerun?.passed === false
+              ? "Patch preview is blocked because rerun proof did not reach the required success state."
+              : "Patch preview appears only after validation and rerun pass.")
+          }
           label="Patch"
-          tone={report.patch?.applied ? "positive" : "neutral"}
-          value={report.patch ? (report.patch.applied ? "Applied in runtime" : "Preview") : "Waiting"}
+          tone={report.patch?.applied ? "positive" : report.rerun?.passed === false ? "negative" : "neutral"}
+          value={
+            report.patch
+              ? report.patch.applied
+                ? "Applied in runtime"
+                : "Preview"
+              : report.rerun?.passed === false
+                ? "Blocked"
+                : "Waiting"
+          }
         />
         {report.patch?.appliedDiff ? (
           <CopyBlock
@@ -1007,7 +1020,11 @@ function AiTracePanel({
                 <pre className="codeBlock">
                   {JSON.stringify(
                     {
-                      patch: run.report.patch ?? "not generated",
+                      patch:
+                        run.report.patch ??
+                        (run.report.rerun?.passed === false
+                          ? "blocked until rerun proof passes"
+                          : "not generated"),
                       rerun: run.report.rerun ?? "not run"
                     },
                     null,

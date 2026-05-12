@@ -113,20 +113,17 @@ export async function applySafeLocatorPatch(options: {
   const filePath = options.scenario.patch.file;
   const absolutePath = resolveControlledTestFile(filePath);
   const oldLine = options.scenario.patch.oldLine;
-  const newLine =
-    options.verdict.patch?.newLine?.trim() ||
-    selectorToPlaywrightClickLine(options.selector);
+  const newLine = selectorToPlaywrightClickLine(options.selector);
 
   await access(absolutePath);
   let source = await readFile(absolutePath, "utf8");
-
-  if (!source.includes(oldLine) && source.includes(newLine)) {
-    source = source.replace(newLine, oldLine);
-  }
+  source = repairControlledActionRegion(source, oldLine);
 
   if (!source.includes(oldLine)) {
     throw new Error(`Controlled test patch target was not found: ${oldLine}`);
   }
+
+  assertControlledClickLine(newLine);
 
   const patched = source.replace(oldLine, newLine);
   await writeFile(absolutePath, patched, "utf8");
@@ -296,17 +293,82 @@ export function buildOperationalErrorOutput(options: {
 
 function selectorToPlaywrightClickLine(selector: string) {
   const testId = selector.match(/^\[data-testid="([^"]+)"\]$/)?.[1];
+  const dataTest = selector.match(/^\[data-test="([^"]+)"\]$/)?.[1];
+  const dataCy = selector.match(/^\[data-cy="([^"]+)"\]$/)?.[1];
+  const name = selector.match(/^\[name="([^"]+)"\]$/)?.[1];
+  const ariaLabel = selector.match(/^\[aria-label="([^"]+)"\]$/)?.[1];
+  const placeholder = selector.match(/^\[placeholder="([^"]+)"\]$/)?.[1];
   const text = selector.match(/^text=(.+)$/)?.[1];
+  const role = selector.match(/^role=([a-zA-Z]+)\[name="(.+)"\]$/);
 
   if (testId) {
     return `await page.getByTestId(${JSON.stringify(testId)}).click();`;
+  }
+
+  if (role) {
+    return `await page.getByRole(${JSON.stringify(role[1])}, { name: ${JSON.stringify(role[2].replace(/\\"/g, '"'))} }).click();`;
   }
 
   if (text) {
     return `await page.getByText(${JSON.stringify(text)}, { exact: true }).click();`;
   }
 
+  if (dataTest) {
+    return `await page.locator(${JSON.stringify(`[data-test="${dataTest}"]`)}).click();`;
+  }
+
+  if (dataCy) {
+    return `await page.locator(${JSON.stringify(`[data-cy="${dataCy}"]`)}).click();`;
+  }
+
+  if (name) {
+    return `await page.locator(${JSON.stringify(`[name="${name}"]`)}).click();`;
+  }
+
+  if (ariaLabel) {
+    return `await page.locator(${JSON.stringify(`[aria-label="${ariaLabel}"]`)}).click();`;
+  }
+
+  if (placeholder) {
+    return `await page.locator(${JSON.stringify(`[placeholder="${placeholder}"]`)}).click();`;
+  }
+
   return `await page.locator(${JSON.stringify(selector)}).click();`;
+}
+
+function repairControlledActionRegion(source: string, oldLine: string) {
+  if (source.includes(oldLine)) {
+    return source;
+  }
+
+  const newline = source.includes("\r\n") ? "\r\n" : "\n";
+  const lines = source.split(/\r?\n/);
+  const gotoIndex = lines.findIndex((line) =>
+    line.includes("await page.goto(`/shopflow?state=${shopflowState}`);")
+  );
+  const expectIndex = lines.findIndex(
+    (line, index) =>
+      index > gotoIndex &&
+      line.includes('await expect(page.getByText("Payment Success")).toBeVisible();')
+  );
+
+  if (gotoIndex === -1 || expectIndex === -1 || expectIndex <= gotoIndex) {
+    return source;
+  }
+
+  const indent = lines[gotoIndex]?.match(/^\s*/)?.[0] || "  ";
+
+  return [
+    ...lines.slice(0, gotoIndex + 1),
+    `${indent}${oldLine}`,
+    ...lines.slice(expectIndex)
+  ].join(newline);
+}
+
+function assertControlledClickLine(line: string) {
+  if (!/^await page\..+\.click\(\);$/.test(line)) {
+    throw new Error(`Refusing to apply non-click Playwright patch line: ${line}`);
+  }
 }
 
 function resolveControlledTestFile(filePath: string) {
