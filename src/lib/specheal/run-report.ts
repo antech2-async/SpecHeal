@@ -1,5 +1,6 @@
 import type { SpecHealRun } from "@/db/schema";
 import type { ShopFlowScenario } from "@/demo/shopflow";
+import type { AiCostBreakdown } from "./ai-cost";
 
 export type TimelineStatus = "pending" | "running" | "completed" | "failed" | "skipped";
 
@@ -45,7 +46,18 @@ export type RunReport = {
     screenshotBase64?: string;
     rawDomLength: number;
     cleanedDomLength: number;
+    cleanedDom?: string;
+    domNoiseSummary?: string[];
     visibleText: string;
+    visibleEvidence?: {
+      pageTitle: string;
+      pageUrl: string;
+      bodyText: string[];
+      errorText: string;
+      paymentSectionText: string;
+      validCandidateCount: number;
+      notes: string[];
+    };
     candidateCount: number;
     candidates: Record<string, unknown>[];
   };
@@ -58,9 +70,11 @@ export type RunReport = {
     candidateSelector?: string | null;
     errorMessage?: string;
     promptTokens?: number;
+    cachedPromptTokens?: number;
     completionTokens?: number;
     totalTokens?: number;
     estimatedCostUsd?: number;
+    costBreakdown?: AiCostBreakdown;
   };
   validation?: {
     selector: string;
@@ -225,7 +239,33 @@ export function normalizeRunReport(
               : undefined,
           rawDomLength: Number(report.evidence.rawDomLength ?? 0),
           cleanedDomLength: Number(report.evidence.cleanedDomLength ?? 0),
+          cleanedDom:
+            typeof report.evidence.cleanedDom === "string"
+              ? report.evidence.cleanedDom
+              : undefined,
+          domNoiseSummary: Array.isArray(report.evidence.domNoiseSummary)
+            ? report.evidence.domNoiseSummary.map(String)
+            : undefined,
           visibleText: String(report.evidence.visibleText ?? ""),
+          visibleEvidence: isRecord(report.evidence.visibleEvidence)
+            ? {
+                pageTitle: String(report.evidence.visibleEvidence.pageTitle ?? ""),
+                pageUrl: String(report.evidence.visibleEvidence.pageUrl ?? ""),
+                bodyText: Array.isArray(report.evidence.visibleEvidence.bodyText)
+                  ? report.evidence.visibleEvidence.bodyText.map(String)
+                  : [],
+                errorText: String(report.evidence.visibleEvidence.errorText ?? ""),
+                paymentSectionText: String(
+                  report.evidence.visibleEvidence.paymentSectionText ?? ""
+                ),
+                validCandidateCount: Number(
+                  report.evidence.visibleEvidence.validCandidateCount ?? 0
+                ),
+                notes: Array.isArray(report.evidence.visibleEvidence.notes)
+                  ? report.evidence.visibleEvidence.notes.map(String)
+                  : []
+              }
+            : undefined,
           candidateCount: Number(report.evidence.candidateCount ?? 0),
           candidates: Array.isArray(report.evidence.candidates)
             ? report.evidence.candidates.filter(isRecord)
@@ -265,6 +305,10 @@ export function normalizeRunReport(
             typeof report.ai.promptTokens === "number"
               ? report.ai.promptTokens
               : undefined,
+          cachedPromptTokens:
+            typeof report.ai.cachedPromptTokens === "number"
+              ? report.ai.cachedPromptTokens
+              : undefined,
           completionTokens:
             typeof report.ai.completionTokens === "number"
               ? report.ai.completionTokens
@@ -276,7 +320,10 @@ export function normalizeRunReport(
           estimatedCostUsd:
             typeof report.ai.estimatedCostUsd === "number"
               ? report.ai.estimatedCostUsd
-              : undefined
+              : undefined,
+          costBreakdown: isRecord(report.ai.costBreakdown)
+            ? (report.ai.costBreakdown as AiCostBreakdown)
+            : undefined
         }
       : undefined,
     validation: isRecord(report.validation)

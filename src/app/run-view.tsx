@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { formatRunDate } from "@/lib/display";
+import type { AiCostBreakdown } from "@/lib/specheal/ai-cost";
 import type { RunReport, RunTimelineEvent } from "@/lib/specheal/run-report";
 
 export type SerializedRun = {
@@ -73,6 +74,9 @@ type RunReportViewProps = {
   artifacts?: RunArtifacts | null;
   mode: "dashboard" | "full";
 };
+
+const TOKEN_PRICING_SOURCE =
+  "OpenAI API pricing for gpt-4o-mini text tokens, checked 2026-05-12";
 
 export function RunReportView({ run, artifacts, mode }: RunReportViewProps) {
   const report = run.report;
@@ -185,6 +189,8 @@ export function RunReportView({ run, artifacts, mode }: RunReportViewProps) {
                 <Row label="Clean DOM" value={`${report.evidence.cleanedDomLength} chars`} />
                 <Row label="Candidates" value={`${report.evidence.candidateCount}`} />
               </dl>
+              <VisibleEvidencePanel evidence={report.evidence} />
+              <DomAuditPanel evidence={report.evidence} />
               <CandidateList candidates={report.evidence.candidates} />
             </div>
           ) : (
@@ -331,6 +337,97 @@ function CandidateList({ candidates }: { candidates: Record<string, unknown>[] }
   );
 }
 
+function VisibleEvidencePanel({
+  evidence
+}: {
+  evidence: NonNullable<RunReport["evidence"]>;
+}) {
+  const visible = evidence.visibleEvidence;
+
+  if (!visible) {
+    return (
+      <div className="emptyEvidence">
+        <strong>Visible evidence unavailable</strong>
+        <p>This older run was captured before visible evidence summaries were added.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="visibleEvidencePanel">
+      <div className="evidenceSectionHeader">
+        <span>Visible evidence</span>
+        <strong>{visible.validCandidateCount} valid candidate(s)</strong>
+      </div>
+      <dl className="kvList">
+        <Row label="Page title" value={visible.pageTitle || "n/a"} />
+        <Row label="Page URL" value={visible.pageUrl || evidence.targetUrl} />
+      </dl>
+      {visible.paymentSectionText ? (
+        <EvidenceQuote label="Payment section" value={visible.paymentSectionText} />
+      ) : null}
+      {visible.errorText ? <EvidenceQuote label="Error text" value={visible.errorText} /> : null}
+      {visible.notes.length > 0 ? (
+        <ul className="evidenceNotes">
+          {visible.notes.map((note) => (
+            <li key={note}>{note}</li>
+          ))}
+        </ul>
+      ) : null}
+      {visible.bodyText.length > 0 ? (
+        <details className="rawSpec">
+          <summary>Visible body text</summary>
+          <pre className="codeBlock">{visible.bodyText.join("\n")}</pre>
+        </details>
+      ) : null}
+    </div>
+  );
+}
+
+function DomAuditPanel({
+  evidence
+}: {
+  evidence: NonNullable<RunReport["evidence"]>;
+}) {
+  const reduction =
+    evidence.rawDomLength > 0
+      ? Math.round((1 - evidence.cleanedDomLength / evidence.rawDomLength) * 100)
+      : 0;
+
+  return (
+    <div className="domAuditPanel">
+      <div className="evidenceSectionHeader">
+        <span>DOM cleaning audit</span>
+        <strong>{Math.max(reduction, 0)}% smaller</strong>
+      </div>
+      {evidence.domNoiseSummary && evidence.domNoiseSummary.length > 0 ? (
+        <div className="noiseChips" aria-label="Removed DOM noise">
+          {evidence.domNoiseSummary.map((item) => (
+            <span key={item}>{item}</span>
+          ))}
+        </div>
+      ) : (
+        <p className="emptyText">No DOM cleaning metadata was stored for this run.</p>
+      )}
+      {evidence.cleanedDom ? (
+        <details className="rawSpec">
+          <summary>Cleaned DOM excerpt</summary>
+          <pre className="codeBlock">{evidence.cleanedDom}</pre>
+        </details>
+      ) : null}
+    </div>
+  );
+}
+
+function EvidenceQuote({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="evidenceQuote">
+      <span>{label}</span>
+      <p>{value}</p>
+    </div>
+  );
+}
+
 function RunEvidenceShelf({
   jira,
   onOpenTrace,
@@ -375,6 +472,14 @@ function RunEvidenceShelf({
       <dl className="kvList">
         <Row label="OpenSpec" value={report.openSpec.path} />
         <Row label="Candidate" value={run.candidateSelector ?? "none"} />
+        <Row
+          label="Evidence"
+          value={
+            report.evidence
+              ? `${report.evidence.cleanedDomLength} cleaned chars, ${report.evidence.candidateCount} candidate(s)`
+              : "baseline only"
+          }
+        />
         <Row
           label="Jira"
           value={jira?.issueKey ?? jira?.status ?? (run.verdict === "NO_HEAL_NEEDED" ? "not required" : "pending")}
@@ -719,15 +824,7 @@ function AiTracePanel({
 
           {activeTab === "summary" ? (
             <div className="traceGrid">
-              <dl className="kvList">
-                <Row label="Model" value={aiTrace.model} />
-                <Row label="Prompt tokens" value={String(aiTrace.promptTokens ?? "n/a")} />
-                <Row label="Completion tokens" value={String(aiTrace.completionTokens ?? "n/a")} />
-                <Row label="Total tokens" value={String(aiTrace.totalTokens ?? "n/a")} />
-                <Row label="Estimated cost" value={String(aiTrace.estimatedCostUsd ?? "n/a")} />
-                <Row label="Duration" value={aiTrace.durationMs == null ? "n/a" : `${aiTrace.durationMs} ms`} />
-                {aiTrace.errorMessage ? <Row label="AI error" value={aiTrace.errorMessage} /> : null}
-              </dl>
+              <CostCounter aiTrace={aiTrace} run={run} />
               <pre className="codeBlock">
                 {JSON.stringify(aiTrace.parsedResponse ?? run.report.ai ?? {}, null, 2)}
               </pre>
@@ -790,6 +887,83 @@ function AiTracePanel({
         </p>
       )}
       </section>
+    </div>
+  );
+}
+
+function CostCounter({
+  aiTrace,
+  run
+}: {
+  aiTrace: AiTraceArtifact;
+  run: SerializedRun;
+}) {
+  const reportAi = run.report.ai;
+  const cost = reportAi?.costBreakdown;
+  const cachedPromptTokens = reportAi?.cachedPromptTokens ?? cost?.cachedInputTokens;
+  const estimatedCost =
+    reportAi?.estimatedCostUsd ?? cost?.estimatedCostUsd ?? aiTrace.estimatedCostUsd;
+
+  return (
+    <div className="tokenCounter">
+      <div className="evidenceSectionHeader">
+        <span>Token and cost counter</span>
+        <strong>{formatUsdCost(estimatedCost)}</strong>
+      </div>
+      <dl className="kvList">
+        <Row label="Model" value={aiTrace.model} />
+        <Row label="Prompt tokens" value={formatMaybeNumber(aiTrace.promptTokens)} />
+        <Row label="Cached prompt tokens" value={formatMaybeNumber(cachedPromptTokens)} />
+        <Row label="Completion tokens" value={formatMaybeNumber(aiTrace.completionTokens)} />
+        <Row label="Total tokens" value={formatMaybeNumber(aiTrace.totalTokens)} />
+        <Row label="Duration" value={aiTrace.durationMs == null ? "n/a" : `${aiTrace.durationMs} ms`} />
+        {aiTrace.errorMessage ? <Row label="AI error" value={aiTrace.errorMessage} /> : null}
+      </dl>
+      <CostBreakdown cost={cost} fallbackCost={aiTrace.estimatedCostUsd} />
+    </div>
+  );
+}
+
+function CostBreakdown({
+  cost,
+  fallbackCost
+}: {
+  cost?: AiCostBreakdown;
+  fallbackCost: number | null;
+}) {
+  if (!cost) {
+    return (
+      <div className="costBreakdown">
+        <CostPart label="Estimated total" value={formatUsdCost(fallbackCost)} />
+        <p>
+          Detailed cached-token breakdown is unavailable for this stored trace. The
+          total remains an estimate from OpenAI token usage.
+        </p>
+        <small>{TOKEN_PRICING_SOURCE}</small>
+      </div>
+    );
+  }
+
+  return (
+    <div className="costBreakdown">
+      <CostPart label="Input" value={formatUsdCost(cost.inputCostUsd)} />
+      <CostPart label="Cached input" value={formatUsdCost(cost.cachedInputCostUsd)} />
+      <CostPart label="Output" value={formatUsdCost(cost.outputCostUsd)} />
+      <p>{cost.note}</p>
+      <small>
+        {cost.pricingSource}. Rates: input ${cost.rates.inputPerMillion}/1M,
+        cached ${cost.rates.cachedInputPerMillion}/1M, output $
+        {cost.rates.outputPerMillion}/1M.
+      </small>
+    </div>
+  );
+}
+
+function CostPart({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <span>{label}</span>
+      <strong>{value}</strong>
     </div>
   );
 }
@@ -936,6 +1110,22 @@ function getDisplayTimeline(run: SerializedRun): RunTimelineEvent[] {
 
 function cleanDisplayText(value: string) {
   return value.replace(/\u001b\[[0-9;]*m/g, "").trim();
+}
+
+function formatMaybeNumber(value: number | null | undefined) {
+  return value == null ? "n/a" : value.toLocaleString("en-US");
+}
+
+function formatUsdCost(value: number | null | undefined) {
+  if (value == null) {
+    return "n/a";
+  }
+
+  if (value > 0 && value < 0.000001) {
+    return "<$0.000001";
+  }
+
+  return `$${value.toFixed(6)}`;
 }
 
 function getOpenSpecHighlights(clause: string) {

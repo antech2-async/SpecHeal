@@ -4,6 +4,7 @@ import { z } from "zod";
 import type { SpecHealRun } from "@/db/schema";
 import type { ShopFlowScenario } from "@/demo/shopflow";
 import { readOpenAIEnv } from "@/lib/env";
+import { estimateAiCost } from "./ai-cost";
 import type { FailureEvidence } from "./evidence";
 import { createAiTrace } from "./runs";
 
@@ -109,10 +110,14 @@ export async function generateOpenAIVerdict({
     const rawResponse =
       message?.content ?? JSON.stringify(message?.parsed ?? message ?? {});
     const usage = completion.usage;
-    const estimatedCostUsd = estimateCostUsd(env.OPENAI_MODEL, {
+    const cachedPromptTokens =
+      usage?.prompt_tokens_details?.cached_tokens ?? undefined;
+    const costBreakdown = estimateAiCost(env.OPENAI_MODEL, {
       promptTokens: usage?.prompt_tokens,
+      cachedPromptTokens,
       completionTokens: usage?.completion_tokens
     });
+    const estimatedCostUsd = costBreakdown?.estimatedCostUsd;
 
     if (!parsed) {
       await createAiTrace({
@@ -153,9 +158,11 @@ export async function generateOpenAIVerdict({
       verdict: parsed,
       usage: {
         promptTokens: usage?.prompt_tokens,
+        cachedPromptTokens,
         completionTokens: usage?.completion_tokens,
         totalTokens: usage?.total_tokens,
-        estimatedCostUsd
+        estimatedCostUsd,
+        costBreakdown
       },
       model: env.OPENAI_MODEL,
       rawResponse
@@ -216,8 +223,10 @@ function buildVerdictPrompt({
     failureEvidence: {
       playwrightError: evidence.playwrightError,
       visibleText: evidence.visibleText,
+      visibleEvidence: evidence.visibleEvidence,
       rawDomLength: evidence.rawDomLength,
       cleanedDomLength: evidence.cleanedDomLength,
+      domNoiseSummary: evidence.domNoiseSummary,
       cleanedDomExcerpt: evidence.cleanedDom.slice(0, 8000)
     },
     candidates: evidence.candidates.slice(0, 10).map((candidate) => ({
@@ -245,32 +254,6 @@ function buildVerdictPrompt({
     systemPrompt,
     userPrompt: JSON.stringify(userPayload, null, 2)
   };
-}
-
-function estimateCostUsd(
-  model: string,
-  usage: {
-    promptTokens?: number;
-    completionTokens?: number;
-  }
-) {
-  const pricing = {
-    "gpt-4o-mini": {
-      inputPerMillion: 0.15,
-      outputPerMillion: 0.6
-    }
-  }[model];
-
-  if (!pricing || !usage.promptTokens || !usage.completionTokens) {
-    return undefined;
-  }
-
-  return Number(
-    (
-      (usage.promptTokens / 1_000_000) * pricing.inputPerMillion +
-      (usage.completionTokens / 1_000_000) * pricing.outputPerMillion
-    ).toFixed(6)
-  );
 }
 
 function elapsedMs(startedAt: number) {

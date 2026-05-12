@@ -55,12 +55,15 @@ check(
 check(
   "DOM cleaning and sensitive masking are present",
   assertIncludes(evidenceSource, [
+    "cleanDomForAi",
     "head",
     "script",
     "style",
-    "NodeFilter.SHOW_COMMENT",
+    "comments",
     "[masked-email]",
     "[masked-card]",
+    "domNoiseSummary",
+    "Cleaned DOM truncated for prompt budget",
     "rawDomLength",
     "cleanedDomLength"
   ]),
@@ -72,9 +75,32 @@ check(
   assertIncludes(evidenceSource, [
     "document.body.querySelectorAll",
     "visible && candidate.enabled",
-    "rankCandidates"
-  ]) && orchestratorSource.includes("zeroCandidates"),
+    "rankCandidates",
+    "No valid visible and enabled payment candidates were found."
+  ]),
   "Recovery candidates must come from actionable body-level elements."
+);
+
+check(
+  "Visible evidence and token cost transparency are present",
+  assertIncludes(evidenceSource, [
+    "extractVisibleEvidence",
+    "paymentSectionText",
+    "validCandidateCount",
+    "errorText"
+  ]) &&
+    assertIncludes(openAiSource, [
+      "visibleEvidence",
+      "cachedPromptTokens",
+      "costBreakdown",
+      "estimateAiCost"
+    ]) &&
+    assertIncludes(orchestratorSource, [
+      "domNoiseSummary",
+      "costBreakdown",
+      "cachedPromptTokens"
+    ]),
+  "Failed-run reports should expose visible evidence, DOM audit details, and OpenAI usage/cost metadata."
 );
 
 check(

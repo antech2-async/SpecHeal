@@ -1204,6 +1204,113 @@ p {
   font-size: 13px;
 }
 
+.visibleEvidencePanel,
+.domAuditPanel,
+.tokenCounter {
+  display: grid;
+  gap: 10px;
+  border: 1px solid rgba(37, 50, 66, 0.82);
+  border-radius: 8px;
+  background: rgba(9, 14, 20, 0.72);
+  padding: 12px;
+}
+
+.evidenceSectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.evidenceSectionHeader span {
+  color: var(--dim);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.evidenceSectionHeader strong {
+  color: var(--spec);
+  font-size: 13px;
+}
+
+.evidenceQuote {
+  display: grid;
+  gap: 5px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(18, 26, 35, 0.74);
+  padding: 10px;
+}
+
+.evidenceQuote span,
+.costBreakdown span {
+  color: var(--dim);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.evidenceQuote p {
+  margin: 0;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.evidenceNotes {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.noiseChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.noiseChips span {
+  border: 1px solid rgba(168, 199, 255, 0.28);
+  border-radius: 999px;
+  background: rgba(168, 199, 255, 0.08);
+  color: #d8e6ff;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 4px 8px;
+}
+
+.costBreakdown {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.costBreakdown div {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(18, 26, 35, 0.68);
+  padding: 10px;
+}
+
+.costBreakdown strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--heal);
+}
+
+.costBreakdown p,
+.costBreakdown small {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .outputPanel p {
   margin: 0;
 }
@@ -1636,6 +1743,10 @@ p {
   .reportHeader,
   .runningHeader {
     display: grid;
+  }
+
+  .costBreakdown {
+    grid-template-columns: 1fr;
   }
 
   .shopItem {

@@ -135,8 +135,8 @@ async function orchestrateRecoveryRun(runId: string) {
       cleanedDomLength: attempt.evidence.cleanedDomLength,
       cleanedDom: attempt.evidence.cleanedDom,
       visibleEvidence: {
-        text: attempt.evidence.visibleText,
-        zeroCandidates: attempt.evidence.candidates.length === 0
+        ...attempt.evidence.visibleEvidence,
+        domNoiseSummary: attempt.evidence.domNoiseSummary
       },
       candidates: attempt.evidence.candidates.map((candidate) => ({
         ...candidate
@@ -152,7 +152,10 @@ async function orchestrateRecoveryRun(runId: string) {
           screenshotBase64: attempt.evidence.screenshotBase64,
           rawDomLength: attempt.evidence.rawDomLength,
           cleanedDomLength: attempt.evidence.cleanedDomLength,
+          cleanedDom: attempt.evidence.cleanedDom,
+          domNoiseSummary: attempt.evidence.domNoiseSummary,
           visibleText: attempt.evidence.visibleText,
+          visibleEvidence: attempt.evidence.visibleEvidence,
           candidateCount: attempt.evidence.candidates.length,
           candidates: attempt.evidence.candidates.map((candidate) => ({
             ...candidate
@@ -166,7 +169,7 @@ async function orchestrateRecoveryRun(runId: string) {
             ? "Failure evidence captured"
             : "Failure evidence captured with zero candidates",
         status: "completed",
-        detail: `Captured screenshot, cleaned DOM, visible text, and ${attempt.evidence.candidates.length} candidate element(s).`,
+        detail: `Captured screenshot, visible evidence, cleaned DOM (${attempt.evidence.rawDomLength} -> ${attempt.evidence.cleanedDomLength} chars), and ${attempt.evidence.candidates.length} candidate element(s).`,
         timestamp: new Date().toISOString()
       }
     );
@@ -187,9 +190,11 @@ async function orchestrateRecoveryRun(runId: string) {
           confidence: aiResult.verdict.confidence,
           candidateSelector: aiResult.verdict.candidateSelector,
           promptTokens: aiResult.usage.promptTokens,
+          cachedPromptTokens: aiResult.usage.cachedPromptTokens,
           completionTokens: aiResult.usage.completionTokens,
           totalTokens: aiResult.usage.totalTokens,
-          estimatedCostUsd: aiResult.usage.estimatedCostUsd
+          estimatedCostUsd: aiResult.usage.estimatedCostUsd,
+          costBreakdown: aiResult.usage.costBreakdown
         }
       };
 
