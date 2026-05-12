@@ -22,6 +22,15 @@ type RunResponse = {
   pollUrl?: string;
 };
 
+const RUN_STORY_PREVIEW = [
+  ["01", "Playwright", "Run the checkout behavior in a real browser."],
+  ["02", "Evidence", "Capture screenshot, DOM, visible text, and candidates."],
+  ["03", "OpenSpec", "Load behavior-first checkout requirements as guardrail."],
+  ["04", "OpenAI", "Classify HEAL, PRODUCT BUG, or report-only healthy run."],
+  ["05", "Proof", "Validate and rerun only when a safe HEAL patch exists."],
+  ["06", "Jira", "Publish actionable results into the configured project."]
+] as const;
+
 export function Dashboard({ initialRuns, readiness, scenarios }: DashboardProps) {
   const [selectedScenarioId, setSelectedScenarioId] = useState(scenarios[0]?.id);
   const [currentRun, setCurrentRun] = useState<SerializedRun | null>(null);
@@ -203,9 +212,22 @@ export function Dashboard({ initialRuns, readiness, scenarios }: DashboardProps)
             />
           ) : (
             <div className="emptyState">
-              <p className="eyebrow">Ready</p>
-              <h2>{selectedScenario?.title ?? "Select a scenario"}</h2>
-              <p>{selectedScenario?.summary}</p>
+              <div>
+                <p className="eyebrow">Ready</p>
+                <h2>{selectedScenario?.title ?? "Select a scenario"}</h2>
+                <p>{selectedScenario?.summary}</p>
+              </div>
+              <div className="previewFlow" aria-label="SpecHeal run preview">
+                {RUN_STORY_PREVIEW.map(([index, title, summary]) => (
+                  <div className="previewStep" key={index}>
+                    <span>{index}</span>
+                    <div>
+                      <strong>{title}</strong>
+                      <p>{summary}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </section>
