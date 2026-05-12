@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: specheal
-          image: ghcr.io/your-github-owner/your-repo:production
+          image: ghcr.io/antech2-async/specheal:production
           imagePullPolicy: Always
           ports:
             - containerPort: 3000

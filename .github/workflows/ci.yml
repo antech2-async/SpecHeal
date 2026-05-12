@@ -10,6 +10,7 @@ on:
 
 env:
   OPENSPEC_TELEMETRY: "0"
+  IMAGE_NAME: ghcr.io/antech2-async/specheal
 
 jobs:
   validate:
@@ -75,7 +76,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=production
             type=sha,format=short

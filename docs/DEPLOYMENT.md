@@ -9,15 +9,15 @@ GitHub Actions builds and pushes the production image to GitHub Container Regist
 Published tags:
 
 ```text
-ghcr.io/<github-owner>/<repo>:production
-ghcr.io/<github-owner>/<repo>:sha-<short-sha>
+ghcr.io/antech2-async/specheal:production
+ghcr.io/antech2-async/specheal:sha-<short-sha>
 ```
 
 Manual fallback:
 
 ```bash
-docker build -t ghcr.io/<github-owner>/<repo>:production .
-docker push ghcr.io/<github-owner>/<repo>:production
+docker build -t ghcr.io/antech2-async/specheal:production .
+docker push ghcr.io/antech2-async/specheal:production
 ```
 
 The image uses the Playwright base image so Chromium and browser dependencies are available for runtime evidence capture and rerun proof.
@@ -46,7 +46,7 @@ kubectl --kubeconfig="merge-kalau-berani 2/merge-kalau-berani/kubeconfig.yaml" r
 Or update the running deployment directly after the GHCR image is available:
 
 ```bash
-kubectl --kubeconfig="merge-kalau-berani 2/merge-kalau-berani/kubeconfig.yaml" set image deployment/specheal-app specheal=ghcr.io/<github-owner>/<repo>:production -n merge-kalau-berani
+kubectl --kubeconfig="merge-kalau-berani 2/merge-kalau-berani/kubeconfig.yaml" set image deployment/specheal-app specheal=ghcr.io/antech2-async/specheal:production -n merge-kalau-berani
 kubectl --kubeconfig="merge-kalau-berani 2/merge-kalau-berani/kubeconfig.yaml" rollout status deployment/specheal-app -n merge-kalau-berani
 ```
 
