@@ -22,11 +22,11 @@
 
 ## 4. Playwright Evidence Pipeline
 
-- [ ] 4.1 Implement Playwright checkout execution against the selected ShopFlow state.
-- [ ] 4.2 Capture failure evidence: error, base64 PNG screenshot, failed selector, target URL, raw DOM length, and visible page text.
-- [ ] 4.3 Implement DOM cleaning and sensitive data masking.
-- [ ] 4.4 Implement candidate extraction from visible/enabled body-level interactive elements.
-- [ ] 4.5 Implement candidate ranking and explicit zero-candidate reporting.
+- [x] 4.1 Implement Playwright checkout execution against the selected ShopFlow state.
+- [x] 4.2 Capture failure evidence: error, base64 PNG screenshot, failed selector, target URL, raw DOM length, and visible page text.
+- [x] 4.3 Implement DOM cleaning and sensitive data masking.
+- [x] 4.4 Implement candidate extraction from visible/enabled body-level interactive elements.
+- [x] 4.5 Implement candidate ranking and explicit zero-candidate reporting.
 
 ## 5. OpenAI Verdict Pipeline
 

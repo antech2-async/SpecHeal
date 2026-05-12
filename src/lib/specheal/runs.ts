@@ -1,6 +1,10 @@
 import { desc, eq } from "drizzle-orm";
 import { getDb } from "@/db";
-import { spechealRuns, type SpecHealRun } from "@/db/schema";
+import {
+  runEvidence,
+  spechealRuns,
+  type SpecHealRun
+} from "@/db/schema";
 import {
   findShopFlowScenario,
   SHOPFLOW_OPENSPEC_CLAUSE,
@@ -94,4 +98,11 @@ export async function updateRecoveryRun(
     .returning();
 
   return run ? serializeRun(run) : null;
+}
+
+export async function createRunEvidence(
+  values: typeof runEvidence.$inferInsert
+) {
+  const [evidence] = await getDb().insert(runEvidence).values(values).returning();
+  return evidence;
 }

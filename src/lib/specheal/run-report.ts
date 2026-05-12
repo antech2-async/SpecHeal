@@ -30,6 +30,25 @@ export type RunReport = {
     path: string;
     clause: string;
   };
+  playwright?: {
+    passed: boolean;
+    selectorUsed: string;
+    targetUrl: string;
+    testName: string;
+    stepName: string;
+    durationMs: number;
+    errorMessage?: string;
+  };
+  evidence?: {
+    failedSelector: string;
+    targetUrl: string;
+    screenshotBase64?: string;
+    rawDomLength: number;
+    cleanedDomLength: number;
+    visibleText: string;
+    candidateCount: number;
+    candidates: Record<string, unknown>[];
+  };
   timeline: RunTimelineEvent[];
 };
 
@@ -110,6 +129,8 @@ export function normalizeRunReport(
       path: "",
       clause: ""
     },
+    playwright: undefined,
+    evidence: undefined,
     timeline: []
   };
 
@@ -132,6 +153,37 @@ export function normalizeRunReport(
       ...fallback.openSpec,
       ...(isRecord(report.openSpec) ? report.openSpec : {})
     },
+    playwright: isRecord(report.playwright)
+      ? {
+          passed: Boolean(report.playwright.passed),
+          selectorUsed: String(report.playwright.selectorUsed ?? ""),
+          targetUrl: String(report.playwright.targetUrl ?? ""),
+          testName: String(report.playwright.testName ?? ""),
+          stepName: String(report.playwright.stepName ?? ""),
+          durationMs: Number(report.playwright.durationMs ?? 0),
+          errorMessage:
+            typeof report.playwright.errorMessage === "string"
+              ? report.playwright.errorMessage
+              : undefined
+        }
+      : undefined,
+    evidence: isRecord(report.evidence)
+      ? {
+          failedSelector: String(report.evidence.failedSelector ?? ""),
+          targetUrl: String(report.evidence.targetUrl ?? ""),
+          screenshotBase64:
+            typeof report.evidence.screenshotBase64 === "string"
+              ? report.evidence.screenshotBase64
+              : undefined,
+          rawDomLength: Number(report.evidence.rawDomLength ?? 0),
+          cleanedDomLength: Number(report.evidence.cleanedDomLength ?? 0),
+          visibleText: String(report.evidence.visibleText ?? ""),
+          candidateCount: Number(report.evidence.candidateCount ?? 0),
+          candidates: Array.isArray(report.evidence.candidates)
+            ? report.evidence.candidates.filter(isRecord)
+            : []
+        }
+      : undefined,
     timeline: Array.isArray(report.timeline)
       ? report.timeline.filter(isTimelineEvent)
       : []

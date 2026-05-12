@@ -90,7 +90,7 @@ export function ShopFlowCheckout({ scenario }: ShopFlowCheckoutProps) {
                 <div>
                   <h3>{item.name}</h3>
                   <p>
-                    {item.variant} · Qty {item.quantity}
+                    {item.variant} - Qty {item.quantity}
                   </p>
                 </div>
                 <strong>{formatter.format(item.quantity * item.price)}</strong>

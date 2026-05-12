@@ -1,6 +1,11 @@
 import { findShopFlowScenario } from "@/demo/shopflow";
-import { appendTimelineEvent } from "./run-report";
-import { findRecoveryRun, updateRecoveryRun } from "./runs";
+import { executeCheckoutAttempt } from "./evidence";
+import { appendTimelineEvent, normalizeRunReport } from "./run-report";
+import {
+  createRunEvidence,
+  findRecoveryRun,
+  updateRecoveryRun
+} from "./runs";
 
 const activeRuns = new Set<string>();
 
@@ -57,27 +62,113 @@ async function orchestrateRecoveryRun(runId: string) {
     report: runningReport
   });
 
-  await markPendingPlaywrightPipeline(runId, runningReport);
-}
+  try {
+    const attempt = await executeCheckoutAttempt({
+      scenario,
+      targetUrl: run.targetUrl ?? runningReport.target.url
+    });
 
-async function markPendingPlaywrightPipeline(
-  runId: string,
-  report: Record<string, unknown>
-) {
-  await updateRecoveryRun(runId, {
-    status: "failed",
-    verdict: "RUN_ERROR",
-    reason:
-      "The run orchestration API is ready, but the Playwright evidence pipeline is implemented in the next OpenSpec section.",
-    failedStage: "playwright_execution",
-    errorMessage: "Playwright checkout execution is not implemented yet.",
-    report: appendTimelineEvent(report, {
-      key: "playwright-pending",
-      title: "Playwright execution pending",
+    const reportWithAttempt = {
+      ...normalizeRunReport(runningReport),
+      playwright: {
+        passed: attempt.passed,
+        selectorUsed: attempt.selectorUsed,
+        targetUrl: attempt.targetUrl,
+        testName: scenario.testName,
+        stepName: scenario.stepName,
+        durationMs: attempt.durationMs,
+        errorMessage: attempt.passed
+          ? undefined
+          : attempt.evidence.playwrightError
+      }
+    };
+
+    if (attempt.passed) {
+      await updateRecoveryRun(runId, {
+        status: "completed",
+        verdict: "NO_HEAL_NEEDED",
+        reason:
+          "Baseline Playwright checkout reached Payment Success without recovery.",
+        confidence: 1,
+        report: appendTimelineEvent(reportWithAttempt, {
+          key: "baseline-passed",
+          title: "Baseline Playwright passed",
+          status: "completed",
+          detail:
+            "The original checkout selector reached Payment Success, so AI recovery is skipped.",
+          timestamp: new Date().toISOString()
+        })
+      });
+      return;
+    }
+
+    await createRunEvidence({
+      runId,
+      playwrightError: attempt.evidence.playwrightError,
+      screenshotBase64: attempt.evidence.screenshotBase64,
+      failedSelector: attempt.evidence.failedSelector,
+      targetUrl: attempt.evidence.targetUrl,
+      rawDomLength: attempt.evidence.rawDomLength,
+      cleanedDomLength: attempt.evidence.cleanedDomLength,
+      cleanedDom: attempt.evidence.cleanedDom,
+      visibleEvidence: {
+        text: attempt.evidence.visibleText,
+        zeroCandidates: attempt.evidence.candidates.length === 0
+      },
+      candidates: attempt.evidence.candidates.map((candidate) => ({
+        ...candidate
+      }))
+    });
+
+    const reportWithEvidence = {
+      ...reportWithAttempt,
+      evidence: {
+        failedSelector: attempt.evidence.failedSelector,
+        targetUrl: attempt.evidence.targetUrl,
+        screenshotBase64: attempt.evidence.screenshotBase64,
+        rawDomLength: attempt.evidence.rawDomLength,
+        cleanedDomLength: attempt.evidence.cleanedDomLength,
+        visibleText: attempt.evidence.visibleText,
+        candidateCount: attempt.evidence.candidates.length,
+        candidates: attempt.evidence.candidates.map((candidate) => ({
+          ...candidate
+        }))
+      }
+    };
+
+    await updateRecoveryRun(runId, {
       status: "failed",
-      detail:
-        "Section 4 will replace this operational terminal state with real browser execution and evidence capture.",
-      timestamp: new Date().toISOString()
-    })
-  });
+      verdict: "RUN_ERROR",
+      reason:
+        "Playwright failure evidence was captured; OpenAI recovery verdict generation is implemented in the next section.",
+      failedStage: "openai_verdict",
+      errorMessage: "OpenAI verdict pipeline is not implemented yet.",
+      report: appendTimelineEvent(reportWithEvidence, {
+        key: "failure-evidence-captured",
+        title:
+          attempt.evidence.candidates.length > 0
+            ? "Failure evidence captured"
+            : "Failure evidence captured with zero candidates",
+        status: "completed",
+        detail: `Captured screenshot, cleaned DOM, visible text, and ${attempt.evidence.candidates.length} candidate element(s).`,
+        timestamp: new Date().toISOString()
+      })
+    });
+  } catch (error) {
+    await updateRecoveryRun(runId, {
+      status: "failed",
+      verdict: "RUN_ERROR",
+      failedStage: "playwright_execution",
+      errorMessage:
+        error instanceof Error ? error.message : "Unknown Playwright runtime error",
+      report: appendTimelineEvent(runningReport, {
+        key: "playwright-runtime-error",
+        title: "Playwright runtime failed",
+        status: "failed",
+        detail:
+          error instanceof Error ? error.message : "Unknown Playwright runtime error",
+        timestamp: new Date().toISOString()
+      })
+    });
+  }
 }
