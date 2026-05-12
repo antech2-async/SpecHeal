@@ -1,0 +1,251 @@
+## ADDED Requirements
+
+### Requirement: Recovery cockpit dashboard
+The system SHALL provide a dashboard for running and reviewing SpecHeal recovery scenarios.
+
+#### Scenario: Dashboard shows active demo project
+- **WHEN** a user opens the SpecHeal dashboard
+- **THEN** the dashboard displays ShopFlow Checkout as the active project
+- **AND** the dashboard displays OpenSpec, Playwright, OpenAI, Jira, and database readiness status
+
+#### Scenario: Dashboard exposes primary run action
+- **WHEN** the dashboard is ready
+- **THEN** the user can choose a scenario and start a SpecHeal run from the main screen
+
+### Requirement: Scenario-based recovery run
+The system SHALL run recovery from a known scenario identifier for the MVP demo.
+
+#### Scenario: User starts selected scenario
+- **WHEN** the user starts a run for a selected scenario
+- **THEN** the system creates a run record with the selected scenario, initial status, target project, and start timestamp
+
+#### Scenario: Scenario controls ShopFlow target state
+- **WHEN** a run starts
+- **THEN** the Playwright target URL uses the ShopFlow state associated with the selected scenario
+
+### Requirement: Playwright runtime execution
+The system SHALL execute the checkout test in a real browser runtime using Playwright.
+
+#### Scenario: Baseline test execution
+- **WHEN** a run begins
+- **THEN** Playwright opens the ShopFlow target, performs the configured checkout action, and waits for `Payment Success`
+
+#### Scenario: Execution result is recorded
+- **WHEN** the Playwright attempt finishes
+- **THEN** the run records pass/fail status, target URL, selector used, test name, step name, error if any, and execution duration
+
+### Requirement: No heal needed classification
+The system SHALL classify successful baseline execution as `NO_HEAL_NEEDED`.
+
+#### Scenario: Baseline run passes
+- **WHEN** the first Playwright attempt reaches `Payment Success`
+- **THEN** the run verdict is `NO_HEAL_NEEDED`
+- **AND** the system skips OpenAI recovery analysis for that run
+
+#### Scenario: Successful run still reaches terminal workflow
+- **WHEN** a run is classified as `NO_HEAL_NEEDED`
+- **THEN** the run becomes terminal and remains eligible for Jira publishing
+
+### Requirement: Failure evidence capture
+The system SHALL capture structured evidence when the Playwright attempt fails.
+
+#### Scenario: Failed run captures evidence
+- **WHEN** the first Playwright attempt fails
+- **THEN** the system captures the Playwright error, failed selector, target URL, screenshot, DOM evidence, visible page evidence, and candidate elements
+
+#### Scenario: Evidence is stored with run report
+- **WHEN** failure evidence is captured
+- **THEN** the evidence is attached to the run report for dashboard display and audit
+
+### Requirement: DOM cleaning and sensitive data masking
+The system SHALL clean DOM evidence and mask sensitive values before sending evidence to OpenAI.
+
+#### Scenario: Framework noise is removed
+- **WHEN** the system prepares DOM evidence for AI analysis
+- **THEN** head, script, style, meta, link, noscript, comments, SVG, iframe, canvas, and template noise are removed
+
+#### Scenario: Sensitive values are masked
+- **WHEN** DOM evidence contains input values or email-like text
+- **THEN** the system masks those values before including the evidence in the prompt or report
+
+#### Scenario: DOM audit metadata is retained
+- **WHEN** DOM evidence is cleaned
+- **THEN** raw DOM length and cleaned DOM length are recorded in the run report
+
+### Requirement: Candidate extraction and ranking
+The system SHALL extract and rank valid candidate elements for recovery.
+
+#### Scenario: Candidate extraction is body-scoped
+- **WHEN** the system extracts click candidates
+- **THEN** candidates are extracted from the document body rather than head metadata or framework shell nodes
+
+#### Scenario: Candidate must be actionable
+- **WHEN** a click candidate is ranked
+- **THEN** the candidate is visible, enabled, and interactive or has a stable locator attribute
+
+#### Scenario: No candidate state is explicit
+- **WHEN** no valid candidate exists
+- **THEN** the report states that zero valid candidates were found
+
+### Requirement: OpenSpec source loading
+The system SHALL load the relevant OpenSpec requirement text for each recovery analysis.
+
+#### Scenario: OpenSpec clause is included in analysis
+- **WHEN** a failed run requires recovery analysis
+- **THEN** the system includes the relevant ShopFlow Checkout OpenSpec clause in the OpenAI prompt
+
+#### Scenario: OpenSpec clause is displayed in report
+- **WHEN** the run report is displayed
+- **THEN** the report shows the OpenSpec clause used as the source of truth
+
+### Requirement: Live OpenAI verdict
+The system SHALL use live OpenAI calls to produce recovery verdicts for failed runs.
+
+#### Scenario: Failed run invokes OpenAI
+- **WHEN** a Playwright run fails and evidence is available
+- **THEN** the system calls OpenAI with structured failure evidence, candidate context, and OpenSpec context
+
+#### Scenario: OpenAI returns structured verdict
+- **WHEN** OpenAI returns a response
+- **THEN** the response is parsed into verdict, reason, confidence, candidate selector if any, and recommended output
+
+#### Scenario: Demo does not silently fallback
+- **WHEN** OpenAI is unavailable, returns invalid output, or cannot be parsed
+- **THEN** the run records a clear AI failure state instead of silently substituting a deterministic verdict
+
+### Requirement: Verdict set
+The system SHALL support `HEAL`, `PRODUCT BUG`, `SPEC OUTDATED`, and `NO_HEAL_NEEDED` as recovery verdicts.
+
+#### Scenario: HEAL verdict
+- **WHEN** evidence shows locator drift while OpenSpec behavior remains satisfied
+- **THEN** the system can classify the run as `HEAL`
+
+#### Scenario: PRODUCT BUG verdict
+- **WHEN** evidence shows required OpenSpec behavior is missing or unavailable
+- **THEN** the system can classify the run as `PRODUCT BUG`
+
+#### Scenario: SPEC OUTDATED verdict
+- **WHEN** evidence shows the test flow no longer matches the current intended behavior and selector replacement is insufficient
+- **THEN** the system can classify the run as `SPEC OUTDATED`
+
+### Requirement: HEAL candidate validation
+The system SHALL validate a `HEAL` candidate selector in the browser before treating it as safe.
+
+#### Scenario: Candidate selector validation passes
+- **WHEN** OpenAI returns a candidate selector for `HEAL`
+- **THEN** the system verifies that the selector matches exactly one visible and enabled element that can accept the intended action
+
+#### Scenario: Candidate validation fails
+- **WHEN** the candidate selector is missing, ambiguous, hidden, disabled, or not actionable
+- **THEN** the system does not mark the patch as safe
+
+### Requirement: Rerun proof
+The system SHALL rerun the checkout test with a validated candidate selector before presenting a safe patch.
+
+#### Scenario: Rerun proves recovered behavior
+- **WHEN** candidate validation passes
+- **THEN** the system reruns the checkout test with the candidate selector and requires `Payment Success`
+
+#### Scenario: Rerun blocks unsafe patch
+- **WHEN** rerun does not reach `Payment Success`
+- **THEN** the system does not present the patch as a safe heal
+
+### Requirement: Patch preview
+The system SHALL generate a reviewable patch preview for safe `HEAL` results.
+
+#### Scenario: Safe heal patch is shown
+- **WHEN** validation and rerun proof pass for a `HEAL` verdict
+- **THEN** the report displays target file, old line, new line, and explanation
+
+#### Scenario: Patch remains review-only
+- **WHEN** a patch preview is generated
+- **THEN** the system does not auto-commit, auto-merge, or directly modify repository code as part of the MVP
+
+### Requirement: Product bug report output
+The system SHALL generate a structured product bug report when recovery is not safe because required behavior is missing.
+
+#### Scenario: Product bug report is generated
+- **WHEN** the final verdict is `PRODUCT BUG`
+- **THEN** the report includes title, summary, evidence, OpenSpec reference, AI reason, and recommended action
+
+#### Scenario: Product bug report does not include safe patch
+- **WHEN** the final verdict is `PRODUCT BUG`
+- **THEN** the report does not present any selector patch as the recommended action
+
+### Requirement: Run timeline report
+The system SHALL display every run as a timeline report.
+
+#### Scenario: Timeline shows recovery steps
+- **WHEN** a run reaches a terminal state
+- **THEN** the dashboard shows Playwright result, evidence, OpenSpec clause, OpenAI verdict, proof or bug decision, and Jira publish result
+
+#### Scenario: Timeline handles healthy runs
+- **WHEN** a run is `NO_HEAL_NEEDED`
+- **THEN** the timeline marks AI recovery, candidate validation, and rerun proof as skipped or not needed
+
+### Requirement: AI trace transparency
+The system SHALL expose the trace needed to audit an AI-assisted decision.
+
+#### Scenario: Trace shows prompt and response
+- **WHEN** a run uses OpenAI
+- **THEN** the report shows system prompt, user prompt, raw response, and parsed response
+
+#### Scenario: Trace labels confidence correctly
+- **WHEN** the report displays confidence
+- **THEN** the value is labeled as AI confidence rather than runtime certainty
+
+#### Scenario: Trace shows token metadata when available
+- **WHEN** OpenAI usage metadata is available
+- **THEN** the report shows prompt tokens, completion tokens, total tokens, and estimated cost
+
+### Requirement: PostgreSQL run persistence
+The system SHALL persist run history and audit artifacts in PostgreSQL.
+
+#### Scenario: Run metadata is stored
+- **WHEN** a run is created or updated
+- **THEN** scenario, status, verdict, reason, confidence, timestamps, and terminal result are stored
+
+#### Scenario: Run artifacts are stored
+- **WHEN** evidence, AI trace, patch preview, validation result, rerun result, or Jira publish result is produced
+- **THEN** the artifact is stored with the run
+
+#### Scenario: Recent runs are visible
+- **WHEN** the dashboard loads
+- **THEN** recent runs can be listed from persisted data
+
+### Requirement: Full report access
+The system SHALL provide a full report view for each persisted run.
+
+#### Scenario: User opens full report
+- **WHEN** a user opens a run report by ID
+- **THEN** the system displays run overview, timeline, evidence, OpenSpec clause, AI trace, proof details, and Jira publish result
+
+#### Scenario: Incomplete run report is handled
+- **WHEN** a run exists but is not complete
+- **THEN** the report page displays the current status rather than failing silently
+
+### Requirement: Terminal run error handling
+The system SHALL record operational errors as terminal run results when a recovery run cannot complete.
+
+#### Scenario: Runtime error is recorded
+- **WHEN** Playwright, OpenAI, persistence, or orchestration fails in a way that stops the run
+- **THEN** the run records an error status, error message, and failed stage
+
+#### Scenario: Runtime error remains publishable
+- **WHEN** a run ends in an operational error
+- **THEN** the run remains eligible for Jira publishing as an operational follow-up
+
+### Requirement: Kubernetes deployment readiness
+The system SHALL be deployable as runtime artifacts on Kubernetes.
+
+#### Scenario: Runtime configuration uses secrets
+- **WHEN** the system is deployed to Kubernetes
+- **THEN** OpenAI, Jira, database, and runtime secrets are provided through server-side environment or Kubernetes Secret
+
+#### Scenario: App container supports Playwright
+- **WHEN** the app container runs in Kubernetes
+- **THEN** Playwright browser dependencies are available for execution
+
+#### Scenario: Dashboard is exposed to judge
+- **WHEN** the Kubernetes deployment is ready
+- **THEN** a service or ingress exposes the SpecHeal dashboard URL

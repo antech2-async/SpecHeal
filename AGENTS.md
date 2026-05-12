@@ -178,36 +178,29 @@ The judge should be able to click a seeded scenario and see a real result withou
 Avoid making these the critical path:
 
 - arbitrary website testing,
-- full Jira live creation,
 - GitHub PR automation,
 - auth or multi-tenant SaaS features,
 - large-scale analytics,
 - generic AI chatbot UX,
 - real test file patching before the basic demo loop works.
 
-Jira-ready report text is enough for MVP. Live Jira API integration is optional stretch.
+Live Jira issue creation is part of the MVP, not stretch. SpecHeal must publish recovery output into Jira when a run produces an actionable result.
 
-## Knowledge References
+## MVP Proof Points
 
-Use these as context only. Do not copy old project code into this repo unless the team has explicitly confirmed the rule implications.
+The build should prove:
 
-- Previous experiment repo: `/Users/wildanniam/Development/project/SpecBridge`
-- Atlas Vault project note: `/Users/wildanniam/Development/Atlas Vault/20 - Projects/Refactory Hackathon 2026/SpecHeal Team README.md`
-- Atlas Vault build handoff: `/Users/wildanniam/Development/Atlas Vault/20 - Projects/Refactory Hackathon 2026/SpecHeal Product Build Knowledge.md`
-
-The previous experiment validated the product direction:
-
-- ShopFlow Checkout demo states,
-- OpenSpec as guardrail,
-- Playwright evidence capture,
-- candidate ranking,
-- structured AI verdict,
-- browser validation,
-- rerun proof,
-- dashboard timeline,
-- Jira-ready report.
-
-In this repo, rebuild the product cleanly from zero for hackathon compliance.
+- ShopFlow Checkout demo states.
+- OpenSpec as guardrail.
+- Live OpenAI structured verdict.
+- Playwright evidence capture.
+- Candidate ranking.
+- Browser validation.
+- Rerun proof.
+- Dashboard timeline.
+- Live Jira issue publishing.
+- PostgreSQL persistence.
+- Kubernetes deployment.
 
 ## Working Agreement For Agents
 
@@ -215,5 +208,6 @@ In this repo, rebuild the product cleanly from zero for hackathon compliance.
 - If OpenSpec artifacts do not exist yet, create/propose them before large implementation work.
 - Keep the MVP narrow: ShopFlow Checkout plus safe test recovery.
 - Preserve the product thesis: prevent false green with OpenSpec guardrails.
+- Treat live OpenAI and live Jira publishing as MVP requirements.
 - Prefer end-to-end proof over broad features.
 - If a decision would expand scope, ask the user first.
