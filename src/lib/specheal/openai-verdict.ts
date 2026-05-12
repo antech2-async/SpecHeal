@@ -234,15 +234,28 @@ function buildVerdictPrompt({
       selectorKind: candidate.selectorKind,
       tagName: candidate.tagName,
       text: candidate.text,
+      visibleText: candidate.visibleText,
       ariaLabel: candidate.ariaLabel,
       testId: candidate.testId,
+      dataTest: candidate.dataTest,
+      dataCy: candidate.dataCy,
       id: candidate.id,
+      name: candidate.name,
+      role: candidate.role,
+      type: candidate.type,
+      placeholder: candidate.placeholder,
+      nearestLabel: candidate.nearestLabel,
+      parentContext: candidate.parentContext,
+      rowContext: candidate.rowContext,
+      containerContext: candidate.containerContext,
+      suggestedLocators: candidate.suggestedLocators,
       rank: candidate.rank,
-      rankReason: candidate.rankReason
+      rankReason: candidate.rankReason,
+      rankSignals: candidate.rankSignals
     })),
     requiredOutputRules: {
       candidateSelector:
-        "Set to a candidate selector for HEAL, otherwise null.",
+        "For HEAL, set to one exact selector from a candidate selector or suggestedLocators entry. Otherwise null.",
       patch:
         "For HEAL, propose only a Playwright test locator patch. For other verdicts, null.",
       jiraReport:

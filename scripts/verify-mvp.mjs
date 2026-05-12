@@ -26,6 +26,7 @@ const openAiSource = read("src/lib/specheal/openai-verdict.ts");
 const openSpecLoaderSource = read("src/lib/specheal/openspec.ts");
 const orchestratorSource = read("src/lib/specheal/orchestrator.ts");
 const runsSource = read("src/lib/specheal/runs.ts");
+const runViewSource = read("src/app/run-view.tsx");
 
 check(
   "ShopFlow OpenSpec stays selector-agnostic",
@@ -76,9 +77,35 @@ check(
     "document.body.querySelectorAll",
     "visible && candidate.enabled",
     "rankCandidates",
-    "No valid visible and enabled payment candidates were found."
+    "No valid visible and enabled payment candidates were found.",
+    "suggestedLocators",
+    "nearestLabel",
+    "containerContext",
+    "rankSignals"
   ]),
   "Recovery candidates must come from actionable body-level elements."
+);
+
+check(
+  "Candidate ranking and report handoff are explainable",
+  assertIncludes(evidenceSource, [
+    "stable locator",
+    "payment intent score",
+    "surrounding context score"
+  ]) &&
+    assertIncludes(openAiSource, [
+      "suggestedLocators",
+      "rankSignals",
+      "containerContext"
+    ]) &&
+    assertIncludes(runViewSource, [
+      "Ranking signals",
+      "CopyButton",
+      "Copy summary",
+      "Copy patch",
+      "Copy Jira context"
+    ]),
+  "Reports should explain candidate ranking and provide copy-ready handoff artifacts."
 );
 
 check(

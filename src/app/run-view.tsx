@@ -201,6 +201,13 @@ export function RunReportView({ run, artifacts, mode }: RunReportViewProps) {
         <Panel eyebrow="04" title="Decision Output">
           {report.output ? (
             <div className="outputPanel">
+              <div className="panelActionRow">
+                <span>Reviewer handoff</span>
+                <CopyButton
+                  label="Copy summary"
+                  value={formatOutputForCopy(report.output)}
+                />
+              </div>
               <strong>{report.output.title}</strong>
               <p>{report.output.summary}</p>
               <p>{report.output.recommendedAction}</p>
@@ -315,6 +322,46 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
+function CopyButton({ label, value }: { label: string; value: string }) {
+  const [copied, setCopied] = useState(false);
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch {
+      setCopied(false);
+    }
+  }
+
+  return (
+    <button className="copyAction" type="button" onClick={copy}>
+      {copied ? "Copied" : label}
+    </button>
+  );
+}
+
+function CopyBlock({
+  className = "",
+  label,
+  value
+}: {
+  className?: string;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="copyBlock">
+      <div className="panelActionRow">
+        <span>Copy-ready artifact</span>
+        <CopyButton label={label} value={value} />
+      </div>
+      <pre className={`codeBlock ${className}`}>{value}</pre>
+    </div>
+  );
+}
+
 function CandidateList({ candidates }: { candidates: Record<string, unknown>[] }) {
   if (candidates.length === 0) {
     return (
@@ -329,11 +376,86 @@ function CandidateList({ candidates }: { candidates: Record<string, unknown>[] }
     <div className="candidateList">
       {candidates.slice(0, 5).map((candidate, index) => (
         <div className="candidateItem" key={`${candidate.selector}-${index}`}>
-          <strong>{String(candidate.selector ?? "unknown")}</strong>
+          <div className="candidateHeader">
+            <span>#{index + 1}</span>
+            <strong>{String(candidate.selector ?? "unknown")}</strong>
+            <em>{Number(candidate.rank ?? 0)} pts</em>
+          </div>
           <span>{String(candidate.rankReason ?? "ranked candidate")}</span>
+          <div className="candidateMeta">
+            <small>{String(candidate.selectorKind ?? "selector")}</small>
+            <small>{String(candidate.tagName ?? "element")}</small>
+            <small>{candidate.enabled === false ? "disabled" : "enabled"}</small>
+            <small>{candidate.visible === false ? "hidden" : "visible"}</small>
+          </div>
+          <LocatorChips locators={candidate.suggestedLocators} />
+          <CandidateContext candidate={candidate} />
+          <RankSignals signals={candidate.rankSignals} />
         </div>
       ))}
     </div>
+  );
+}
+
+function LocatorChips({ locators }: { locators: unknown }) {
+  const values = Array.isArray(locators) ? locators.map(String).filter(Boolean) : [];
+
+  if (values.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="locatorChips" aria-label="Suggested locators">
+      {values.slice(0, 5).map((locator) => (
+        <code key={locator}>{locator}</code>
+      ))}
+    </div>
+  );
+}
+
+function CandidateContext({ candidate }: { candidate: Record<string, unknown> }) {
+  const facts = [
+    ["Text", candidate.visibleText || candidate.text],
+    ["Label", candidate.nearestLabel],
+    ["Role", candidate.role],
+    ["Name", candidate.name],
+    ["Container", candidate.containerContext],
+    ["Row", candidate.rowContext],
+    ["Parent", candidate.parentContext]
+  ].filter(([, value]) => typeof value === "string" && value.trim().length > 0);
+
+  if (facts.length === 0) {
+    return null;
+  }
+
+  return (
+    <dl className="candidateContext">
+      {facts.slice(0, 4).map(([label, value]) => (
+        <div key={String(label)}>
+          <dt>{String(label)}</dt>
+          <dd>{String(value)}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function RankSignals({ signals }: { signals: unknown }) {
+  const values = Array.isArray(signals) ? signals.map(String).filter(Boolean) : [];
+
+  if (values.length === 0) {
+    return null;
+  }
+
+  return (
+    <details className="rankSignals">
+      <summary>Ranking signals</summary>
+      <ul>
+        {values.map((signal) => (
+          <li key={signal}>{signal}</li>
+        ))}
+      </ul>
+    </details>
   );
 }
 
@@ -576,7 +698,11 @@ function ProofPanel({ run }: { run: SerializedRun }) {
           value={report.patch ? (report.patch.applied ? "Applied in runtime" : "Preview") : "Waiting"}
         />
         {report.patch?.appliedDiff ? (
-          <pre className="codeBlock proofDiff">{report.patch.appliedDiff}</pre>
+          <CopyBlock
+            className="proofDiff"
+            label="Copy patch"
+            value={report.patch.appliedDiff}
+          />
         ) : null}
       </div>
     );
@@ -732,6 +858,19 @@ function JiraPanel({
         <Row label="Issue" value={result.issueKey ?? "n/a"} />
       </dl>
       {result.issueUrl ? <a href={result.issueUrl}>{result.issueUrl}</a> : null}
+      <CopyBlock
+        label="Copy Jira context"
+        value={[
+          `Jira status: ${result.status}`,
+          result.issueType ? `Issue type: ${result.issueType}` : null,
+          result.issueKey ? `Issue: ${result.issueKey}` : null,
+          result.issueUrl ? `URL: ${result.issueUrl}` : null,
+          result.payloadSummary ? `Payload: ${result.payloadSummary}` : null,
+          result.errorMessage ? `Error: ${result.errorMessage}` : null
+        ]
+          .filter(Boolean)
+          .join("\n")}
+      />
       {result.errorMessage ? <p className="inlineError">{result.errorMessage}</p> : null}
       {result.status === "jira_publish_failed" ? (
         <button className="secondaryAction" disabled={retrying} type="button" onClick={retry}>
@@ -1126,6 +1265,20 @@ function formatUsdCost(value: number | null | undefined) {
   }
 
   return `$${value.toFixed(6)}`;
+}
+
+function formatOutputForCopy(output: NonNullable<RunReport["output"]>) {
+  return [
+    output.title,
+    "",
+    `Summary: ${output.summary}`,
+    `Recommended action: ${output.recommendedAction}`,
+    "",
+    "Evidence:",
+    ...output.evidence.map((item) => `- ${item}`),
+    "",
+    `Safety note: ${output.safetyNote}`
+  ].join("\n");
 }
 
 function getOpenSpecHighlights(clause: string) {

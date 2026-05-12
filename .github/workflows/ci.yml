@@ -45,8 +45,8 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Validate OpenSpec change
-        run: openspec validate build-specheal-recovery-cockpit --no-interactive
+      - name: Validate OpenSpec changes
+        run: openspec validate --changes --no-interactive
 
   image:
     name: Build and publish GHCR image
