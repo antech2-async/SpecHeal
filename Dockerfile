@@ -31,6 +31,7 @@ COPY --from=builder --chown=pwuser:pwuser /app/package.json ./package.json
 COPY --from=builder --chown=pwuser:pwuser /app/playwright.config.ts ./playwright.config.ts
 COPY --from=builder --chown=pwuser:pwuser /app/tests ./tests
 COPY --from=builder --chown=pwuser:pwuser /app/openspec ./openspec
+RUN mkdir -p test-results playwright-report && chown -R pwuser:pwuser /app/test-results /app/playwright-report /app/tests
 
 USER pwuser
 EXPOSE 3000
