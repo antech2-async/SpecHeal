@@ -71,10 +71,10 @@
 
 ## 9. Kubernetes Deployment
 
-- [ ] 9.1 Create Dockerfile for a single app container that includes dashboard/API runtime, in-process runner, Jira/OpenAI clients, and Playwright browser dependencies.
-- [ ] 9.2 Create Kubernetes manifests for single app Deployment, Service, and optional Ingress.
-- [ ] 9.3 Create PostgreSQL deployment/service or document external PostgreSQL connection as the separate data service.
-- [ ] 9.4 Create Kubernetes Secret template for OpenAI, Jira, database, and runtime config.
+- [x] 9.1 Create Dockerfile for a single app container that includes dashboard/API runtime, in-process runner, Jira/OpenAI clients, and Playwright browser dependencies.
+- [x] 9.2 Create Kubernetes manifests for single app Deployment, Service, and optional Ingress.
+- [x] 9.3 Create PostgreSQL deployment/service or document external PostgreSQL connection as the separate data service.
+- [x] 9.4 Create Kubernetes Secret template for OpenAI, Jira, database, and runtime config.
 - [ ] 9.5 Verify the deployed dashboard can reach OpenAI, Jira, PostgreSQL, and ShopFlow runtime routes.
 
 ## 10. Verification and Demo Readiness

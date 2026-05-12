@@ -1,0 +1,80 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: specheal
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: specheal-app
+  namespace: specheal
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: specheal-app
+  template:
+    metadata:
+      labels:
+        app: specheal-app
+    spec:
+      containers:
+        - name: specheal
+          image: ghcr.io/your-org/specheal:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - secretRef:
+                name: specheal-secrets
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 45
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 3Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: specheal-app
+  namespace: specheal
+spec:
+  selector:
+    app: specheal-app
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3000
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: specheal-app
+  namespace: specheal
+spec:
+  rules:
+    - host: specheal.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: specheal-app
+                port:
+                  number: 80
