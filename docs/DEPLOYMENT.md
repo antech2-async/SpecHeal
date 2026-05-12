@@ -58,4 +58,14 @@ kubectl --kubeconfig="merge-kalau-berani 2/merge-kalau-berani/kubeconfig.yaml" l
 kubectl --kubeconfig="merge-kalau-berani 2/merge-kalau-berani/kubeconfig.yaml" port-forward service/specheal-app 3000:80 -n merge-kalau-berani
 ```
 
-Open `https://merge-kalau-berani.hackathon.sev-2.com` or `http://localhost:3000` through port-forward and confirm the dashboard readiness cards show OpenAI, Jira, PostgreSQL, and Playwright as configured.
+Open `http://merge-kalau-berani.hackathon.sev-2.com` or `http://localhost:3000` through port-forward and confirm the dashboard readiness cards show OpenAI, Jira, PostgreSQL, and Playwright as configured.
+
+Latest deployed verification:
+
+```text
+Image: ghcr.io/antech2-async/specheal:sha-c794df0
+Dashboard: http://merge-kalau-berani.hackathon.sev-2.com
+Healthy Flow: completed, NO_HEAL_NEEDED, Jira not_required
+Locator Drift: completed, HEAL, validation passed, rerun passed, Jira SH-14
+Product Bug: completed, PRODUCT BUG, zero candidates, Jira SH-15
+```

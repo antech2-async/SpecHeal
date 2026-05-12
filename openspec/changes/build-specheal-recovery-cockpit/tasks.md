@@ -75,7 +75,7 @@
 - [x] 9.2 Create Kubernetes manifests for single app Deployment, Service, and optional Ingress.
 - [x] 9.3 Create PostgreSQL deployment/service or document external PostgreSQL connection as the separate data service.
 - [x] 9.4 Create Kubernetes Secret template for OpenAI, Jira, database, and runtime config.
-- [ ] 9.5 Verify the deployed dashboard can reach OpenAI, Jira, PostgreSQL, and ShopFlow runtime routes.
+- [x] 9.5 Verify the deployed dashboard can reach OpenAI, Jira, PostgreSQL, and ShopFlow runtime routes.
 
 ## 10. Verification and Demo Readiness
 
@@ -87,4 +87,4 @@
 - [x] 10.6 Run Locator Drift scenario end-to-end with live OpenAI, applied test patch, rerun proof, and Jira Task creation.
 - [x] 10.7 Run Product Bug scenario end-to-end with live OpenAI and Jira Bug creation.
 - [x] 10.8 Verify recent runs and full report persist after reload.
-- [ ] 10.9 Prepare a 5-minute demo script using the deployed Kubernetes URL.
+- [x] 10.9 Prepare a 5-minute demo script using the deployed Kubernetes URL.
