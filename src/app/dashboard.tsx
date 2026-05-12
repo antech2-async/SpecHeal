@@ -93,7 +93,7 @@ export function Dashboard({ initialRuns, readiness, scenarios }: DashboardProps)
   }, [currentRun, isRunning, pollRun]);
 
   async function startRun() {
-    if (!selectedScenario) {
+    if (!selectedScenario || isRunning) {
       return;
     }
 
@@ -117,8 +117,6 @@ export function Dashboard({ initialRuns, readiness, scenarios }: DashboardProps)
 
       setCurrentRun(payload.run);
       setCurrentArtifacts(payload.artifacts ?? null);
-      await pollRun(payload.run.id);
-      await loadRecentRuns();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Run failed to start.");
     } finally {
@@ -140,6 +138,25 @@ export function Dashboard({ initialRuns, readiness, scenarios }: DashboardProps)
         <div className="projectBadge">
           <span>Active project</span>
           <strong>ShopFlow Checkout</strong>
+        </div>
+      </section>
+
+      <section className="demoStatusBar" aria-label="Active demo context">
+        <div>
+          <span>Scenario</span>
+          <strong>{selectedScenario?.title ?? "Select scenario"}</strong>
+        </div>
+        <div>
+          <span>Expected decision</span>
+          <strong>{selectedScenario ? SCENARIO_OUTCOMES[selectedScenario.id]?.value : "Decision"}</strong>
+        </div>
+        <div>
+          <span>Target route</span>
+          <strong>/shopflow?state={selectedScenario?.runtimeState ?? "normal"}</strong>
+        </div>
+        <div className={isRunning ? "active" : currentRun ? getRunTone(currentRun) : ""}>
+          <span>Run state</span>
+          <strong>{getCurrentRunLabel(currentRun, isRunning)}</strong>
         </div>
       </section>
 
@@ -168,6 +185,33 @@ export function Dashboard({ initialRuns, readiness, scenarios }: DashboardProps)
             </div>
           </div>
         ))}
+      </section>
+
+      <section className="recentRuns" aria-label="Recent recovery runs">
+        <div className="panelHeader">
+          <span>Recent runs</span>
+          <button type="button" onClick={loadRecentRuns}>
+            Refresh
+          </button>
+        </div>
+        {recentRuns.length === 0 ? (
+          <p className="emptyText">No persisted runs yet.</p>
+        ) : (
+          <div className="recentRunList">
+            {recentRuns.map((run) => (
+              <a className="recentRun" href={`/runs/${run.id}`} key={run.id}>
+                <span>{run.scenarioId}</span>
+                <strong className={`recentVerdict ${getRunTone(run)}`}>
+                  {run.verdict ?? run.status}
+                </strong>
+                <small>
+                  {run.candidateSelector ? `${run.candidateSelector} - ` : ""}
+                  {formatRunDate(run.createdAt)}
+                </small>
+              </a>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="workbench">
@@ -200,41 +244,18 @@ export function Dashboard({ initialRuns, readiness, scenarios }: DashboardProps)
           <button
             className="primaryAction"
             type="button"
-            disabled={loading || !selectedScenario}
+            disabled={loading || isRunning || !selectedScenario}
             onClick={startRun}
           >
-            {loading ? "Starting run" : "Start SpecHeal run"}
+            {loading ? "Starting run" : isRunning ? "Running recovery" : "Start SpecHeal run"}
           </button>
           {message ? <p className="inlineError">{message}</p> : null}
-
-          <div className="recentRuns">
-            <div className="panelHeader">
-              <span>Recent runs</span>
-              <button type="button" onClick={loadRecentRuns}>
-                Refresh
-              </button>
-            </div>
-            {recentRuns.length === 0 ? (
-              <p className="emptyText">No persisted runs yet.</p>
-            ) : (
-              recentRuns.map((run) => (
-                <a className="recentRun" href={`/runs/${run.id}`} key={run.id}>
-                  <span>{run.scenarioId}</span>
-                  <strong className={`recentVerdict ${getRunTone(run)}`}>
-                    {run.verdict ?? run.status}
-                  </strong>
-                  <small>
-                    {run.candidateSelector ? `${run.candidateSelector} · ` : ""}
-                    {formatRunDate(run.createdAt)}
-                  </small>
-                </a>
-              ))
-            )}
-          </div>
         </aside>
 
         <section className="runStage" aria-label="Current run">
-          {currentRun ? (
+          {currentRun && isRunning ? (
+            <RunningRunPanel run={currentRun} selectedScenarioTitle={selectedScenario?.title ?? currentRun.scenarioId} />
+          ) : currentRun ? (
             <RunReportView
               artifacts={currentArtifacts}
               mode="dashboard"
@@ -280,6 +301,67 @@ export function Dashboard({ initialRuns, readiness, scenarios }: DashboardProps)
   );
 }
 
+function RunningRunPanel({
+  run,
+  selectedScenarioTitle
+}: {
+  run: SerializedRun;
+  selectedScenarioTitle: string;
+}) {
+  return (
+    <article className="runningPanel" aria-live="polite">
+      <header className="runningHeader">
+        <div>
+          <p className="eyebrow">SpecHeal run</p>
+          <h2>Running recovery sequence</h2>
+          <p>
+            {selectedScenarioTitle} is moving through browser execution,
+            OpenSpec guardrails, and proof capture.
+          </p>
+        </div>
+        <div className="runningBadge">
+          <span>{run.status}</span>
+          <strong>{run.scenarioState}</strong>
+        </div>
+      </header>
+
+      <div className="runningProgress" aria-hidden="true">
+        <span />
+      </div>
+
+      <div className="runningMeta" aria-label="Active run details">
+        <div>
+          <span>Run ID</span>
+          <strong>{run.id.slice(0, 8)}</strong>
+        </div>
+        <div>
+          <span>Baseline selector</span>
+          <strong>{run.baselineSelector}</strong>
+        </div>
+        <div>
+          <span>Started</span>
+          <strong>{formatRunDate(run.createdAt)}</strong>
+        </div>
+      </div>
+
+      <div className="runningSteps" aria-label="Recovery progress">
+        {RUN_STORY_PREVIEW.map(([index, title, summary], stepIndex) => (
+          <div
+            className={stepIndex === 0 ? "runningStep active" : "runningStep"}
+            key={index}
+          >
+            <span>{index}</span>
+            <div>
+              <strong>{title}</strong>
+              <p>{summary}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </article>
+  );
+}
+
 function getRunTone(run: SerializedRun) {
   if (run.verdict === "PRODUCT BUG" || run.verdict === "RUN_ERROR" || run.status === "failed") {
     return "negative";
@@ -294,4 +376,16 @@ function getRunTone(run: SerializedRun) {
   }
 
   return "neutral";
+}
+
+function getCurrentRunLabel(run: SerializedRun | null, isRunning: boolean) {
+  if (isRunning) {
+    return "Running recovery";
+  }
+
+  if (!run) {
+    return "Ready";
+  }
+
+  return run.verdict ?? run.status;
 }

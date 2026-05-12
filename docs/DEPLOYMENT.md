@@ -50,6 +50,35 @@ kubectl --kubeconfig="merge-kalau-berani 2/merge-kalau-berani/kubeconfig.yaml" s
 kubectl --kubeconfig="merge-kalau-berani 2/merge-kalau-berani/kubeconfig.yaml" rollout status deployment/specheal-app -n merge-kalau-berani
 ```
 
+## Update After Code Changes
+
+For normal team changes, use the GitHub Actions/GHCR path:
+
+```bash
+git push origin main
+```
+
+Wait for the CI workflow to publish a new image, then copy the newest `sha-<short-sha>` tag from:
+
+```text
+https://github.com/antech2-async/SpecHeal/pkgs/container/specheal
+```
+
+Update Kubernetes to that exact image:
+
+```bash
+kubectl --kubeconfig="merge-kalau-berani 2/merge-kalau-berani/kubeconfig.yaml" set image deployment/specheal-app specheal=ghcr.io/antech2-async/specheal:sha-<short-sha> -n merge-kalau-berani
+kubectl --kubeconfig="merge-kalau-berani 2/merge-kalau-berani/kubeconfig.yaml" rollout status deployment/specheal-app -n merge-kalau-berani
+```
+
+Check what is currently running:
+
+```bash
+kubectl --kubeconfig="merge-kalau-berani 2/merge-kalau-berani/kubeconfig.yaml" get deployment specheal-app -n merge-kalau-berani -o jsonpath="{.spec.template.spec.containers[0].image}"
+```
+
+Use the `production` tag only when you intentionally want "latest successful main" instead of a pinned commit image. For demo stability, prefer the `sha-<short-sha>` tag because it is easier to prove exactly what is deployed.
+
 ## Verify Runtime
 
 ```bash

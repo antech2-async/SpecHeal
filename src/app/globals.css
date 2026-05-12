@@ -36,6 +36,16 @@ body {
     sans-serif;
 }
 
+@keyframes progress-slide {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(220%);
+  }
+}
+
 .shell {
   width: min(1120px, calc(100vw - 32px));
   min-height: 100vh;
@@ -205,6 +215,54 @@ p {
   font-size: 44px;
 }
 
+.demoStatusBar {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--line);
+  margin-top: 18px;
+}
+
+.demoStatusBar div {
+  min-width: 0;
+  background: rgba(9, 14, 20, 0.94);
+  padding: 12px 14px;
+}
+
+.demoStatusBar span {
+  display: block;
+  color: var(--dim);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.demoStatusBar strong {
+  display: block;
+  margin-top: 5px;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+}
+
+.demoStatusBar .active strong {
+  color: var(--action);
+}
+
+.demoStatusBar .positive strong {
+  color: var(--heal);
+}
+
+.demoStatusBar .negative strong {
+  color: var(--bug);
+}
+
+.demoStatusBar .warning strong {
+  color: var(--warning);
+}
+
 .projectBadge,
 .verdictCard,
 .metric {
@@ -294,6 +352,7 @@ p {
   padding: 14px;
   text-align: left;
   cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
 }
 
 .scenarioOutcome {
@@ -320,6 +379,10 @@ p {
   background: #101923;
 }
 
+.scenarioOption:hover {
+  transform: translateY(-1px);
+}
+
 .scenarioOption span,
 .recentRun span,
 .recentRun small {
@@ -329,6 +392,7 @@ p {
 
 .scenarioOption strong,
 .recentRun strong {
+  overflow-wrap: anywhere;
   font-size: 16px;
 }
 
@@ -368,14 +432,31 @@ p {
 }
 
 .recentRuns {
-  margin-top: 24px;
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.recentRunList {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(150px, 1fr));
+  gap: 10px;
 }
 
 .recentRun {
   display: grid;
-  gap: 4px;
-  border-bottom: 1px solid var(--line);
-  padding: 12px 0;
+  gap: 5px;
+  border: 1px solid rgba(37, 50, 66, 0.78);
+  border-radius: 8px;
+  background: rgba(18, 26, 35, 0.48);
+  padding: 10px 12px;
+  min-width: 0;
+  transition: border-color 160ms ease, background 160ms ease;
+}
+
+.recentRun:hover {
+  border-color: rgba(82, 220, 235, 0.65);
+  background: rgba(18, 26, 35, 0.76);
 }
 
 .recentVerdict.positive {
@@ -388,6 +469,138 @@ p {
 
 .recentVerdict.warning {
   color: var(--warning);
+}
+
+.runningPanel {
+  overflow: hidden;
+  min-height: 520px;
+  border: 1px solid rgba(82, 220, 235, 0.42);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(18, 26, 35, 0.94), rgba(9, 14, 20, 0.92));
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
+}
+
+.runningHeader {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: start;
+  padding: 24px;
+}
+
+.runningHeader h2 {
+  margin: 0;
+  font-size: 30px;
+}
+
+.runningHeader p {
+  margin-bottom: 0;
+}
+
+.runningBadge {
+  min-width: 140px;
+  border: 1px solid rgba(82, 220, 235, 0.42);
+  border-radius: 8px;
+  background: rgba(82, 220, 235, 0.08);
+  padding: 12px;
+}
+
+.runningBadge span,
+.runningMeta span {
+  display: block;
+  color: var(--dim);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.runningBadge strong,
+.runningMeta strong {
+  display: block;
+  margin-top: 6px;
+}
+
+.runningProgress {
+  overflow: hidden;
+  height: 8px;
+  margin: 0 24px 20px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.34);
+}
+
+.runningProgress span {
+  display: block;
+  width: 38%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, transparent, var(--action), transparent);
+  animation: progress-slide 1.8s linear infinite;
+}
+
+.runningMeta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0 24px 20px;
+}
+
+.runningMeta div {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(13, 18, 24, 0.78);
+  padding: 12px;
+}
+
+.runningMeta strong {
+  overflow-wrap: anywhere;
+  font-size: 14px;
+}
+
+.runningSteps {
+  display: grid;
+  gap: 10px;
+  padding: 0 24px 24px;
+}
+
+.runningStep {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(13, 18, 24, 0.72);
+  padding: 13px;
+}
+
+.runningStep > span {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid rgba(82, 220, 235, 0.32);
+  border-radius: 8px;
+  color: var(--action);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.runningStep.active {
+  border-color: rgba(82, 220, 235, 0.52);
+  background: rgba(82, 220, 235, 0.08);
+}
+
+.runningStep strong,
+.runningStep p {
+  margin: 0;
+}
+
+.runningStep p {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 13px;
 }
 
 .emptyState {
@@ -507,7 +720,10 @@ p {
   margin-top: 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
+  background: rgba(9, 14, 20, 0.72);
   color: var(--text);
+  cursor: pointer;
+  font: inherit;
   font-size: 12px;
   font-weight: 800;
   text-decoration: none;
@@ -609,8 +825,7 @@ p {
 
 .decisionNode span,
 .reportPanel > span,
-.proofStep span,
-.traceDrawer summary small {
+.proofStep span {
   display: block;
   color: var(--dim);
   font-size: 11px;
@@ -672,6 +887,12 @@ p {
   color: #c6f6df;
 }
 
+.storyGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+  gap: 14px;
+}
+
 .timeline {
   display: grid;
   gap: 10px;
@@ -685,6 +906,7 @@ p {
   border-radius: 8px;
   background: rgba(13, 18, 24, 0.72);
   padding: 12px;
+  position: relative;
 }
 
 .timelineItem > span {
@@ -748,6 +970,65 @@ p {
   color: var(--muted);
 }
 
+.evidenceShelf {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(9, 14, 20, 0.9);
+  padding: 14px;
+}
+
+.evidenceShelf > div:first-child span,
+.evidenceShelf .kvList dt {
+  color: var(--dim);
+}
+
+.evidenceShelf > div:first-child span {
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.evidenceShelf > div:first-child strong {
+  display: block;
+  margin-top: 6px;
+  color: var(--text);
+}
+
+.evidenceShelf > div:first-child p {
+  margin: 6px 0 0;
+  font-size: 13px;
+}
+
+.shelfImage {
+  display: block;
+  width: 100%;
+  max-height: 210px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.shelfEmpty {
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  background: rgba(18, 26, 35, 0.56);
+  padding: 12px;
+}
+
+.shelfEmpty strong,
+.shelfEmpty p {
+  margin: 0;
+}
+
+.shelfEmpty p {
+  margin-top: 4px;
+  font-size: 13px;
+}
+
 .reportGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -758,7 +1039,8 @@ p {
   min-width: 0;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(13, 18, 24, 0.94);
+  background:
+    linear-gradient(180deg, rgba(18, 26, 35, 0.9), rgba(9, 14, 20, 0.9));
   padding: 16px;
 }
 
@@ -932,27 +1214,100 @@ p {
   color: var(--muted);
 }
 
+.traceOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  justify-content: flex-end;
+  background: rgba(2, 4, 8, 0.72);
+  padding: 18px;
+}
+
 .traceDrawer {
-  border: 1px solid var(--line);
+  align-self: flex-start;
+  width: min(760px, 100%);
+  max-height: calc(100vh - 36px);
+  overflow: auto;
+  border: 1px solid rgba(82, 220, 235, 0.36);
   border-radius: 8px;
-  background: var(--panel);
-  padding: 14px;
+  background:
+    linear-gradient(180deg, rgba(18, 26, 35, 0.98), rgba(7, 10, 14, 0.98));
+  box-shadow: 0 24px 90px rgba(0, 0, 0, 0.54);
+  padding: 16px;
 }
 
-.traceDrawer summary {
-  display: grid;
-  cursor: pointer;
-  gap: 4px;
-  font-weight: 800;
-}
-
-.traceDrawer[open] summary {
+.traceHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
   margin-bottom: 12px;
 }
 
-.traceDrawer summary small {
+.traceHeader p,
+.traceHeader span,
+.traceHeader small {
+  margin: 0;
+}
+
+.traceHeader span {
+  display: block;
+  color: var(--text);
+  font-weight: 900;
+}
+
+.traceHeader small {
+  display: block;
+  margin-top: 4px;
+  color: var(--dim);
+  font-size: 12px;
+  font-weight: 700;
   text-transform: none;
-  font-weight: 600;
+}
+
+.traceClose {
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #090e14;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 0 12px;
+}
+
+.traceClose:hover {
+  border-color: var(--action);
+  color: var(--action);
+}
+
+.traceTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.traceTabs button {
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(9, 14, 20, 0.78);
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  padding: 0 12px;
+  cursor: pointer;
+}
+
+.traceTabs button.active,
+.traceTabs button:hover {
+  border-color: rgba(82, 220, 235, 0.58);
+  color: var(--action);
 }
 
 .proofStack {
@@ -1199,6 +1554,22 @@ p {
   background: #7af0f8;
 }
 
+.payButton:disabled {
+  cursor: progress;
+  opacity: 0.74;
+}
+
+.paymentPreparing {
+  display: grid;
+  min-height: 48px;
+  place-items: center;
+  border: 1px dashed rgba(82, 220, 235, 0.42);
+  border-radius: 8px;
+  background: rgba(82, 220, 235, 0.08);
+  color: #c8f8fb;
+  font-weight: 800;
+}
+
 .paymentUnavailable {
   display: grid;
   gap: 6px;
@@ -1245,20 +1616,25 @@ p {
   }
 
   .cockpitHeader,
+  .demoStatusBar,
   .reportHeader,
+  .runningHeader,
   .workbench,
   .reportGrid,
+  .storyGrid,
   .metricStrip,
   .decisionStrip,
   .demoThesis,
   .executiveSummary,
+  .runningMeta,
   .selectedScenarioBrief,
   .specHighlights {
     grid-template-columns: 1fr;
   }
 
   .cockpitHeader,
-  .reportHeader {
+  .reportHeader,
+  .runningHeader {
     display: grid;
   }
 
@@ -1272,5 +1648,28 @@ p {
 
   .previewFlow {
     grid-template-columns: 1fr;
+  }
+
+  .recentRunList {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .recentRun {
+    min-width: 210px;
+  }
+
+  .traceOverlay {
+    padding: 10px;
+  }
+
+  .traceDrawer {
+    max-height: calc(100vh - 20px);
+  }
+
+  .traceHeader {
+    display: grid;
   }
 }

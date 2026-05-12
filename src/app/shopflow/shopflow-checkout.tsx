@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ShopFlowScenario } from "@/demo/shopflow";
 
 type ShopFlowCheckoutProps = {
@@ -37,7 +37,22 @@ const formatter = new Intl.NumberFormat("id-ID", {
 });
 
 export function ShopFlowCheckout({ scenario }: ShopFlowCheckoutProps) {
+  const [loading, setLoading] = useState(true);
   const [paid, setPaid] = useState(false);
+  const [processing, setProcessing] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setLoading(false), 420);
+    return () => window.clearTimeout(timer);
+  }, [scenario.runtimeState]);
+
+  function submitPayment() {
+    setProcessing(true);
+    window.setTimeout(() => {
+      setPaid(true);
+      setProcessing(false);
+    }, 650);
+  }
 
   if (paid) {
     return (
@@ -124,7 +139,11 @@ export function ShopFlowCheckout({ scenario }: ShopFlowCheckoutProps) {
             <p className="paymentIntent">
               Payment is available after order review and customer confirmation.
             </p>
-            {scenario.runtimeState === "bug" ? (
+            {loading ? (
+              <div className="paymentPreparing" aria-live="polite">
+                Preparing secure payment controls...
+              </div>
+            ) : scenario.runtimeState === "bug" ? (
               <div className="paymentUnavailable" role="alert">
                 <strong>Payment system unavailable.</strong>
                 <span>
@@ -135,19 +154,21 @@ export function ShopFlowCheckout({ scenario }: ShopFlowCheckoutProps) {
               <button
                 className="payButton"
                 data-testid="complete-payment"
+                disabled={processing}
                 type="button"
-                onClick={() => setPaid(true)}
+                onClick={submitPayment}
               >
-                Pay Now
+                {processing ? "Processing..." : "Pay Now"}
               </button>
             ) : (
               <button
                 className="payButton"
+                disabled={processing}
                 id="pay-now"
                 type="button"
-                onClick={() => setPaid(true)}
+                onClick={submitPayment}
               >
-                Pay Now
+                {processing ? "Processing..." : "Pay Now"}
               </button>
             )}
           </section>

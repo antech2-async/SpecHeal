@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { formatRunDate } from "@/lib/display";
 import type { RunReport, RunTimelineEvent } from "@/lib/specheal/run-report";
@@ -79,6 +79,7 @@ export function RunReportView({ run, artifacts, mode }: RunReportViewProps) {
   const latestJira = artifacts?.jiraResults[0] ?? null;
   const verdictMeta = getVerdictMeta(run);
   const timeline = getDisplayTimeline(run);
+  const [traceOpen, setTraceOpen] = useState(false);
 
   return (
     <article className={mode === "full" ? "reportPage" : "runReport"}>
@@ -92,6 +93,9 @@ export function RunReportView({ run, artifacts, mode }: RunReportViewProps) {
           <span>Verdict</span>
           <strong>{run.verdict ?? run.status}</strong>
           <small>{verdictMeta.caption}</small>
+          <button className="reportAction" type="button" onClick={() => setTraceOpen(true)}>
+            Open AI trace
+          </button>
           {mode === "dashboard" && (run.status === "completed" || run.status === "failed") ? (
             <a className="reportAction" href={`/runs/${run.id}`}>
               Full report
@@ -128,17 +132,20 @@ export function RunReportView({ run, artifacts, mode }: RunReportViewProps) {
         </div>
       ) : null}
 
-      <section className="timeline" aria-label="Run timeline">
-        {timeline.map((event) => (
-          <div className={`timelineItem ${event.status}`} key={event.key}>
-            <span />
-            <div>
-              <strong>{event.title}</strong>
-              <p>{event.detail}</p>
-              <small>{formatRunDate(event.timestamp)}</small>
+      <section className="storyGrid" aria-label="Recovery story">
+        <div className="timeline" aria-label="Run timeline">
+          {timeline.map((event) => (
+            <div className={`timelineItem ${event.status}`} key={event.key}>
+              <span />
+              <div>
+                <strong>{event.title}</strong>
+                <p>{event.detail}</p>
+                <small>{formatRunDate(event.timestamp)}</small>
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
+        <RunEvidenceShelf jira={latestJira} onOpenTrace={() => setTraceOpen(true)} run={run} />
       </section>
 
       <section className="reportGrid" aria-label="Run report panels">
@@ -212,7 +219,12 @@ export function RunReportView({ run, artifacts, mode }: RunReportViewProps) {
         </Panel>
       </section>
 
-      <AiTracePanel aiTrace={artifacts?.aiTrace ?? null} run={run} />
+      <AiTracePanel
+        aiTrace={artifacts?.aiTrace ?? null}
+        onClose={() => setTraceOpen(false)}
+        open={traceOpen}
+        run={run}
+      />
     </article>
   );
 }
@@ -316,6 +328,68 @@ function CandidateList({ candidates }: { candidates: Record<string, unknown>[] }
         </div>
       ))}
     </div>
+  );
+}
+
+function RunEvidenceShelf({
+  jira,
+  onOpenTrace,
+  run
+}: {
+  jira: JiraResultArtifact | null;
+  onOpenTrace: () => void;
+  run: SerializedRun;
+}) {
+  const report = run.report;
+  const screenshot = report.evidence?.screenshotBase64;
+  const proofLabel = report.rerun?.passed
+    ? "Rerun passed"
+    : report.validation?.passed
+      ? "Candidate validated"
+      : report.playwright?.passed
+        ? "Baseline passed"
+        : "Awaiting proof";
+
+  return (
+    <aside className="evidenceShelf" aria-label="Evidence summary">
+      <div>
+        <span>Proof</span>
+        <strong>{proofLabel}</strong>
+        <p>{getDecisionSummary(run, jira)}</p>
+      </div>
+
+      {screenshot ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          alt="Captured Playwright failure screenshot"
+          className="shelfImage"
+          src={`data:image/png;base64,${screenshot}`}
+        />
+      ) : (
+        <div className="shelfEmpty">
+          <strong>No failure screenshot</strong>
+          <p>Healthy runs skip evidence capture after the baseline succeeds.</p>
+        </div>
+      )}
+
+      <dl className="kvList">
+        <Row label="OpenSpec" value={report.openSpec.path} />
+        <Row label="Candidate" value={run.candidateSelector ?? "none"} />
+        <Row
+          label="Jira"
+          value={jira?.issueKey ?? jira?.status ?? (run.verdict === "NO_HEAL_NEEDED" ? "not required" : "pending")}
+        />
+      </dl>
+
+      {jira?.issueUrl ? (
+        <a className="reportAction" href={jira.issueUrl} rel="noreferrer" target="_blank">
+          Open Jira
+        </a>
+      ) : null}
+      <button className="reportAction" type="button" onClick={onOpenTrace}>
+        Inspect AI trace
+      </button>
+    </aside>
   );
 }
 
@@ -565,40 +639,148 @@ function JiraPanel({
 
 function AiTracePanel({
   aiTrace,
+  onClose,
+  open,
   run
 }: {
   aiTrace: AiTraceArtifact | null;
+  onClose: () => void;
+  open: boolean;
   run: SerializedRun;
 }) {
   const reportAi = run.report.ai;
+  const [activeTab, setActiveTab] = useState<"summary" | "prompt" | "response" | "proof">("summary");
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    }
+
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [onClose, open]);
+
+  if (!open) {
+    return null;
+  }
 
   return (
-    <details className="traceDrawer">
-      <summary>
-        <span>AI trace</span>
-        <small>
-          {aiTrace
-            ? "Prompt, raw response, parsed verdict, usage, and cost"
-            : run.verdict === "NO_HEAL_NEEDED"
-              ? "Skipped because the baseline passed"
-              : "Unavailable for this run"}
-        </small>
-      </summary>
+    <div className="traceOverlay" role="presentation" onMouseDown={onClose}>
+      <section
+        aria-label="AI trace audit"
+        aria-modal="true"
+        className="traceDrawer"
+        role="dialog"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <header className="traceHeader">
+          <div>
+            <p className="eyebrow">AI trace</p>
+            <span>Recovery decision audit</span>
+            <small>
+              {aiTrace
+                ? "Prompt, raw response, parsed verdict, usage, and cost"
+                : run.verdict === "NO_HEAL_NEEDED"
+                  ? "Skipped because the baseline passed"
+                  : "Unavailable for this run"}
+            </small>
+          </div>
+          <button aria-label="Close AI trace" className="traceClose" type="button" onClick={onClose}>
+            Close
+          </button>
+        </header>
       {aiTrace ? (
-        <div className="traceGrid">
-          <dl className="kvList">
-            <Row label="Model" value={aiTrace.model} />
-            <Row label="Prompt tokens" value={String(aiTrace.promptTokens ?? "n/a")} />
-            <Row label="Completion tokens" value={String(aiTrace.completionTokens ?? "n/a")} />
-            <Row label="Estimated cost" value={String(aiTrace.estimatedCostUsd ?? "n/a")} />
-            {aiTrace.errorMessage ? <Row label="AI error" value={aiTrace.errorMessage} /> : null}
-          </dl>
-          <pre className="codeBlock">{aiTrace.systemPrompt}</pre>
-          <pre className="codeBlock">{aiTrace.userPrompt}</pre>
-          <pre className="codeBlock">
-            {aiTrace.rawResponse ??
-              JSON.stringify(aiTrace.parsedResponse ?? {}, null, 2)}
-          </pre>
+        <div>
+          <div className="traceTabs" role="tablist" aria-label="AI trace sections">
+            {[
+              ["summary", "Summary"],
+              ["prompt", "Prompt"],
+              ["response", "Response"],
+              ["proof", "Proof"]
+            ].map(([id, label]) => (
+              <button
+                aria-selected={activeTab === id}
+                className={activeTab === id ? "active" : ""}
+                key={id}
+                onClick={() => setActiveTab(id as typeof activeTab)}
+                role="tab"
+                type="button"
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {activeTab === "summary" ? (
+            <div className="traceGrid">
+              <dl className="kvList">
+                <Row label="Model" value={aiTrace.model} />
+                <Row label="Prompt tokens" value={String(aiTrace.promptTokens ?? "n/a")} />
+                <Row label="Completion tokens" value={String(aiTrace.completionTokens ?? "n/a")} />
+                <Row label="Total tokens" value={String(aiTrace.totalTokens ?? "n/a")} />
+                <Row label="Estimated cost" value={String(aiTrace.estimatedCostUsd ?? "n/a")} />
+                <Row label="Duration" value={aiTrace.durationMs == null ? "n/a" : `${aiTrace.durationMs} ms`} />
+                {aiTrace.errorMessage ? <Row label="AI error" value={aiTrace.errorMessage} /> : null}
+              </dl>
+              <pre className="codeBlock">
+                {JSON.stringify(aiTrace.parsedResponse ?? run.report.ai ?? {}, null, 2)}
+              </pre>
+            </div>
+          ) : null}
+
+          {activeTab === "prompt" ? (
+            <div className="traceGrid">
+              <Panel eyebrow="System" title="System Prompt">
+                <pre className="codeBlock">{aiTrace.systemPrompt}</pre>
+              </Panel>
+              <Panel eyebrow="User" title="User Prompt">
+                <pre className="codeBlock">{aiTrace.userPrompt}</pre>
+              </Panel>
+            </div>
+          ) : null}
+
+          {activeTab === "response" ? (
+            <div className="traceGrid">
+              <Panel eyebrow="Raw" title="Raw Response">
+                <pre className="codeBlock">
+                  {aiTrace.rawResponse ?? "No raw response stored."}
+                </pre>
+              </Panel>
+              <Panel eyebrow="Parsed" title="Parsed Response">
+                <pre className="codeBlock">
+                  {JSON.stringify(aiTrace.parsedResponse ?? {}, null, 2)}
+                </pre>
+              </Panel>
+            </div>
+          ) : null}
+
+          {activeTab === "proof" ? (
+            <div className="traceGrid">
+              <Panel eyebrow="Validation" title="Browser Validation">
+                <pre className="codeBlock">
+                  {JSON.stringify(run.report.validation ?? { status: "not run" }, null, 2)}
+                </pre>
+              </Panel>
+              <Panel eyebrow="Rerun" title="Patch and Rerun">
+                <pre className="codeBlock">
+                  {JSON.stringify(
+                    {
+                      patch: run.report.patch ?? "not generated",
+                      rerun: run.report.rerun ?? "not run"
+                    },
+                    null,
+                    2
+                  )}
+                </pre>
+              </Panel>
+            </div>
+          ) : null}
         </div>
       ) : (
         <p className="emptyText">
@@ -607,7 +789,8 @@ function AiTracePanel({
             : "AI recovery was skipped or has not run yet."}
         </p>
       )}
-    </details>
+      </section>
+    </div>
   );
 }
 
