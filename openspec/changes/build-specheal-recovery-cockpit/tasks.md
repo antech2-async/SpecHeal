@@ -1,9 +1,9 @@
 ## 1. Project Foundation
 
-- [ ] 1.1 Scaffold the web application with TypeScript, React/Next.js, linting, and environment configuration.
-- [ ] 1.2 Add runtime dependencies for Playwright, OpenAI, PostgreSQL access, Jira API calls, and validation utilities.
-- [ ] 1.3 Define required environment variables for OpenAI model/API key, Jira Cloud REST API, database, base URL, and Playwright runtime.
-- [ ] 1.4 Create initial PostgreSQL schema for runs, evidence, base64 screenshots, AI traces, validation results, applied patch previews, rerun results, and Jira publish results.
+- [x] 1.1 Scaffold the web application with TypeScript, React/Next.js, linting, and environment configuration.
+- [x] 1.2 Add runtime dependencies for Playwright, OpenAI, PostgreSQL access, Jira API calls, and validation utilities.
+- [x] 1.3 Define required environment variables for OpenAI model/API key, Jira Cloud REST API, database, base URL, and Playwright runtime.
+- [x] 1.4 Create initial PostgreSQL schema for runs, evidence, base64 screenshots, AI traces, validation results, applied patch previews, rerun results, and Jira publish results.
 
 ## 2. ShopFlow Checkout Demo
 
