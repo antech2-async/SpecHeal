@@ -62,6 +62,36 @@ export type RunReport = {
     totalTokens?: number;
     estimatedCostUsd?: number;
   };
+  validation?: {
+    selector: string;
+    passed: boolean;
+    elementCount: number;
+    reason?: string;
+  };
+  patch?: {
+    filePath: string;
+    oldLine: string;
+    newLine: string;
+    appliedDiff: string;
+    explanation: string;
+    applied: boolean;
+  };
+  rerun?: {
+    testFilePath: string;
+    selector: string;
+    passed: boolean;
+    expectedText: string;
+    durationMs?: number;
+    errorMessage?: string;
+  };
+  output?: {
+    kind: "safe_heal" | "product_bug" | "spec_outdated" | "operational_error";
+    title: string;
+    summary: string;
+    recommendedAction: string;
+    evidence: string[];
+    safetyNote: string;
+  };
   timeline: RunTimelineEvent[];
 };
 
@@ -145,6 +175,10 @@ export function normalizeRunReport(
     playwright: undefined,
     evidence: undefined,
     ai: undefined,
+    validation: undefined,
+    patch: undefined,
+    rerun: undefined,
+    output: undefined,
     timeline: []
   };
 
@@ -243,6 +277,61 @@ export function normalizeRunReport(
             typeof report.ai.estimatedCostUsd === "number"
               ? report.ai.estimatedCostUsd
               : undefined
+        }
+      : undefined,
+    validation: isRecord(report.validation)
+      ? {
+          selector: String(report.validation.selector ?? ""),
+          passed: Boolean(report.validation.passed),
+          elementCount: Number(report.validation.elementCount ?? 0),
+          reason:
+            typeof report.validation.reason === "string"
+              ? report.validation.reason
+              : undefined
+        }
+      : undefined,
+    patch: isRecord(report.patch)
+      ? {
+          filePath: String(report.patch.filePath ?? ""),
+          oldLine: String(report.patch.oldLine ?? ""),
+          newLine: String(report.patch.newLine ?? ""),
+          appliedDiff: String(report.patch.appliedDiff ?? ""),
+          explanation: String(report.patch.explanation ?? ""),
+          applied: Boolean(report.patch.applied)
+        }
+      : undefined,
+    rerun: isRecord(report.rerun)
+      ? {
+          testFilePath: String(report.rerun.testFilePath ?? ""),
+          selector: String(report.rerun.selector ?? ""),
+          passed: Boolean(report.rerun.passed),
+          expectedText: String(report.rerun.expectedText ?? ""),
+          durationMs:
+            typeof report.rerun.durationMs === "number"
+              ? report.rerun.durationMs
+              : undefined,
+          errorMessage:
+            typeof report.rerun.errorMessage === "string"
+              ? report.rerun.errorMessage
+              : undefined
+        }
+      : undefined,
+    output: isRecord(report.output)
+      ? {
+          kind:
+            report.output.kind === "safe_heal" ||
+            report.output.kind === "product_bug" ||
+            report.output.kind === "spec_outdated" ||
+            report.output.kind === "operational_error"
+              ? report.output.kind
+              : "operational_error",
+          title: String(report.output.title ?? ""),
+          summary: String(report.output.summary ?? ""),
+          recommendedAction: String(report.output.recommendedAction ?? ""),
+          evidence: Array.isArray(report.output.evidence)
+            ? report.output.evidence.map(String)
+            : [],
+          safetyNote: String(report.output.safetyNote ?? "")
         }
       : undefined,
     timeline: Array.isArray(report.timeline)

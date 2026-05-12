@@ -39,13 +39,13 @@
 
 ## 6. Validation, Rerun, and Output Generation
 
-- [ ] 6.1 Implement browser validation for `HEAL` candidate selectors.
-- [ ] 6.2 Generate and apply the safe locator patch to the target Playwright test file after candidate validation.
-- [ ] 6.3 Implement rerun proof from the patched Playwright test file and require `Payment Success`.
-- [ ] 6.4 Generate safe patch preview/applied diff only after validation, patch application, and rerun pass.
-- [ ] 6.5 Generate product bug report output when required OpenSpec behavior is missing.
-- [ ] 6.6 Generate operational error report output when the run fails before a recovery verdict.
-- [ ] 6.7 Ensure product bug output never claims that SpecHeal repaired product code.
+- [x] 6.1 Implement browser validation for `HEAL` candidate selectors.
+- [x] 6.2 Generate and apply the safe locator patch to the target Playwright test file after candidate validation.
+- [x] 6.3 Implement rerun proof from the patched Playwright test file and require `Payment Success`.
+- [x] 6.4 Generate safe patch preview/applied diff only after validation, patch application, and rerun pass.
+- [x] 6.5 Generate product bug report output when required OpenSpec behavior is missing.
+- [x] 6.6 Generate operational error report output when the run fails before a recovery verdict.
+- [x] 6.7 Ensure product bug output never claims that SpecHeal repaired product code.
 
 ## 7. Jira Integration
 

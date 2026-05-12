@@ -1,9 +1,21 @@
 import { findShopFlowScenario } from "@/demo/shopflow";
 import { executeCheckoutAttempt } from "./evidence";
 import { generateOpenAIVerdict } from "./openai-verdict";
+import {
+  applySafeLocatorPatch,
+  buildOperationalErrorOutput,
+  buildProductBugOutput,
+  buildSafeHealOutput,
+  buildSpecOutdatedOutput,
+  runPatchedCheckoutProof,
+  validateHealCandidate
+} from "./proof";
 import { appendTimelineEvent, normalizeRunReport } from "./run-report";
 import {
+  createPatchPreview,
+  createRerunResult,
   createRunEvidence,
+  createValidationResult,
   findRecoveryRun,
   updateRecoveryRun
 } from "./runs";
@@ -39,13 +51,22 @@ async function orchestrateRecoveryRun(runId: string) {
       verdict: "RUN_ERROR",
       failedStage: "scenario_lookup",
       errorMessage: `Unknown scenario for persisted run: ${run.scenarioId}`,
-      report: appendTimelineEvent(run.report, {
-        key: "scenario-lookup-failed",
-        title: "Scenario lookup failed",
-        status: "failed",
-        detail: `SpecHeal could not find scenario ${run.scenarioId}.`,
-        timestamp: new Date().toISOString()
-      })
+      report: appendTimelineEvent(
+        {
+          ...normalizeRunReport(run.report),
+          output: buildOperationalErrorOutput({
+            stage: "scenario_lookup",
+            message: `Unknown scenario for persisted run: ${run.scenarioId}`
+          })
+        },
+        {
+          key: "scenario-lookup-failed",
+          title: "Scenario lookup failed",
+          status: "failed",
+          detail: `SpecHeal could not find scenario ${run.scenarioId}.`,
+          timestamp: new Date().toISOString()
+        }
+      )
     });
     return;
   }
@@ -172,27 +193,157 @@ async function orchestrateRecoveryRun(runId: string) {
       };
 
       if (aiResult.verdict.verdict === "HEAL") {
+        const validation = await validateHealCandidate({
+          scenario,
+          targetUrl: attempt.evidence.targetUrl,
+          selector: aiResult.verdict.candidateSelector
+        });
+
+        await createValidationResult({
+          runId,
+          selector: validation.selector || "(missing)",
+          passed: validation.passed,
+          elementCount: validation.elementCount,
+          reason: validation.reason
+        });
+
+        const validationReport = appendTimelineEvent(
+          {
+            ...aiReport,
+            validation
+          },
+          {
+            key: validation.passed
+              ? "candidate-validation-passed"
+              : "candidate-validation-failed",
+            title: validation.passed
+              ? "Candidate validation passed"
+              : "Candidate validation failed",
+            status: validation.passed ? "completed" : "failed",
+            detail: validation.reason,
+            timestamp: new Date().toISOString()
+          }
+        );
+
+        if (!validation.passed || !aiResult.verdict.candidateSelector) {
+          await updateRecoveryRun(runId, {
+            status: "failed",
+            verdict: "HEAL",
+            reason:
+              "OpenAI classified this as HEAL, but browser candidate validation did not pass.",
+            confidence: aiResult.verdict.confidence,
+            candidateSelector: aiResult.verdict.candidateSelector,
+            failedStage: "candidate_validation",
+            errorMessage: validation.reason,
+            report: validationReport
+          });
+          return;
+        }
+
+        const patch = await applySafeLocatorPatch({
+          scenario,
+          selector: aiResult.verdict.candidateSelector,
+          verdict: aiResult.verdict
+        });
+        const rerun = await runPatchedCheckoutProof({
+          scenario,
+          selector: aiResult.verdict.candidateSelector
+        });
+
+        await createRerunResult({
+          runId,
+          testFilePath: rerun.testFilePath,
+          selector: rerun.selector,
+          passed: rerun.passed,
+          expectedText: rerun.expectedText,
+          durationMs: rerun.durationMs,
+          errorMessage: rerun.errorMessage
+        });
+
+        const rerunReport = appendTimelineEvent(
+          {
+            ...validationReport,
+            rerun
+          },
+          {
+            key: rerun.passed ? "rerun-proof-passed" : "rerun-proof-failed",
+            title: rerun.passed ? "Patched rerun passed" : "Patched rerun failed",
+            status: rerun.passed ? "completed" : "failed",
+            detail: rerun.passed
+              ? "The patched Playwright test reached Payment Success."
+              : rerun.errorMessage || "The patched Playwright test did not pass.",
+            timestamp: new Date().toISOString()
+          }
+        );
+
+        if (!rerun.passed) {
+          await updateRecoveryRun(runId, {
+            status: "failed",
+            verdict: "HEAL",
+            reason:
+              "OpenAI classified this as HEAL and validation passed, but patched rerun proof failed.",
+            confidence: aiResult.verdict.confidence,
+            candidateSelector: aiResult.verdict.candidateSelector,
+            failedStage: "rerun_proof",
+            errorMessage: rerun.errorMessage,
+            report: rerunReport
+          });
+          return;
+        }
+
+        await createPatchPreview({
+          runId,
+          filePath: patch.filePath,
+          oldLine: patch.oldLine,
+          newLine: patch.newLine,
+          appliedDiff: patch.appliedDiff,
+          explanation: patch.explanation,
+          applied: patch.applied
+        });
+
         await updateRecoveryRun(runId, {
-          status: "failed",
+          status: "completed",
           verdict: "HEAL",
-          reason:
-            "OpenAI classified this as HEAL; browser validation and rerun proof are required before a safe patch can be presented.",
+          reason: aiResult.verdict.reason,
           confidence: aiResult.verdict.confidence,
           candidateSelector: aiResult.verdict.candidateSelector,
-          failedStage: "heal_validation",
-          errorMessage:
-            "HEAL validation and patched rerun proof are implemented in the next section.",
-          report: appendTimelineEvent(aiReport, {
-            key: "ai-verdict-heal",
-            title: "OpenAI verdict: HEAL",
-            status: "completed",
-            detail:
-              "AI found likely locator drift, but SpecHeal has not yet validated or rerun the patch in this slice.",
-            timestamp: new Date().toISOString()
-          })
+          failedStage: null,
+          errorMessage: null,
+          report: appendTimelineEvent(
+            {
+              ...rerunReport,
+              patch,
+              output: buildSafeHealOutput({
+                scenario,
+                validation,
+                patch,
+                rerun
+              })
+            },
+            {
+              key: "safe-patch-ready",
+              title: "Safe patch ready for review",
+              status: "completed",
+              detail:
+                "Validation, controlled test-file patch application, and rerun proof all passed.",
+              timestamp: new Date().toISOString()
+            }
+          )
         });
         return;
       }
+
+      const output =
+        aiResult.verdict.verdict === "PRODUCT BUG"
+          ? buildProductBugOutput({
+              scenario,
+              verdict: aiResult.verdict,
+              visibleText: attempt.evidence.visibleText
+            })
+          : buildSpecOutdatedOutput({
+              scenario,
+              verdict: aiResult.verdict
+            });
 
       await updateRecoveryRun(runId, {
         status: "completed",
@@ -200,13 +351,19 @@ async function orchestrateRecoveryRun(runId: string) {
         reason: aiResult.verdict.reason,
         confidence: aiResult.verdict.confidence,
         candidateSelector: aiResult.verdict.candidateSelector,
-        report: appendTimelineEvent(aiReport, {
-          key: `ai-verdict-${aiResult.verdict.verdict.toLowerCase().replace(/\s+/g, "-")}`,
-          title: `OpenAI verdict: ${aiResult.verdict.verdict}`,
-          status: "completed",
-          detail: aiResult.verdict.reason,
-          timestamp: new Date().toISOString()
-        })
+        report: appendTimelineEvent(
+          {
+            ...aiReport,
+            output
+          },
+          {
+            key: `ai-verdict-${aiResult.verdict.verdict.toLowerCase().replace(/\s+/g, "-")}`,
+            title: `OpenAI verdict: ${aiResult.verdict.verdict}`,
+            status: "completed",
+            detail: aiResult.verdict.reason,
+            timestamp: new Date().toISOString()
+          }
+        )
       });
       return;
     } catch (error) {
@@ -227,7 +384,12 @@ async function orchestrateRecoveryRun(runId: string) {
               status: "failed" as const,
               model: process.env.OPENAI_MODEL || "gpt-4o-mini",
               errorMessage: message
-            }
+            },
+            output: buildOperationalErrorOutput({
+              stage: "openai_verdict",
+              message,
+              scenarioTitle: scenario.title
+            })
           },
           {
             key: "openai-verdict-failed",
@@ -247,14 +409,27 @@ async function orchestrateRecoveryRun(runId: string) {
       failedStage: "playwright_execution",
       errorMessage:
         error instanceof Error ? error.message : "Unknown Playwright runtime error",
-      report: appendTimelineEvent(runningReport, {
-        key: "playwright-runtime-error",
-        title: "Playwright runtime failed",
-        status: "failed",
-        detail:
-          error instanceof Error ? error.message : "Unknown Playwright runtime error",
-        timestamp: new Date().toISOString()
-      })
+      report: appendTimelineEvent(
+        {
+          ...runningReport,
+          output: buildOperationalErrorOutput({
+            stage: "playwright_execution",
+            message:
+              error instanceof Error
+                ? error.message
+                : "Unknown Playwright runtime error",
+            scenarioTitle: scenario.title
+          })
+        },
+        {
+          key: "playwright-runtime-error",
+          title: "Playwright runtime failed",
+          status: "failed",
+          detail:
+            error instanceof Error ? error.message : "Unknown Playwright runtime error",
+          timestamp: new Date().toISOString()
+        }
+      )
     });
   }
 }

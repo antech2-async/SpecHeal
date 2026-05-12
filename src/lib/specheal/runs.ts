@@ -2,8 +2,11 @@ import { desc, eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import {
   aiTraces,
+  patchPreviews,
   runEvidence,
+  rerunResults,
   spechealRuns,
+  validationResults,
   type SpecHealRun
 } from "@/db/schema";
 import {
@@ -111,4 +114,28 @@ export async function createRunEvidence(
 export async function createAiTrace(values: typeof aiTraces.$inferInsert) {
   const [trace] = await getDb().insert(aiTraces).values(values).returning();
   return trace;
+}
+
+export async function createValidationResult(
+  values: typeof validationResults.$inferInsert
+) {
+  const [result] = await getDb()
+    .insert(validationResults)
+    .values(values)
+    .returning();
+  return result;
+}
+
+export async function createPatchPreview(
+  values: typeof patchPreviews.$inferInsert
+) {
+  const [preview] = await getDb().insert(patchPreviews).values(values).returning();
+  return preview;
+}
+
+export async function createRerunResult(
+  values: typeof rerunResults.$inferInsert
+) {
+  const [result] = await getDb().insert(rerunResults).values(values).returning();
+  return result;
 }
