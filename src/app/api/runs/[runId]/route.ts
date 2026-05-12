@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getRecoveryRun } from "@/lib/specheal/runs";
+import { getRecoveryRunWithArtifacts } from "@/lib/specheal/runs";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -12,11 +12,11 @@ type RouteContext = {
 
 export async function GET(_request: NextRequest, context: RouteContext) {
   const { runId } = await context.params;
-  const run = await getRecoveryRun(runId);
+  const result = await getRecoveryRunWithArtifacts(runId);
 
-  if (!run) {
+  if (!result) {
     return NextResponse.json({ error: "Run not found." }, { status: 404 });
   }
 
-  return NextResponse.json({ run });
+  return NextResponse.json(result);
 }

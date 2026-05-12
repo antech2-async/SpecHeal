@@ -2,6 +2,7 @@ import { desc, eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import {
   aiTraces,
+  jiraPublishResults,
   patchPreviews,
   runEvidence,
   rerunResults,
@@ -65,6 +66,68 @@ export async function createRecoveryRun(scenarioId: string) {
 export async function getRecoveryRun(runId: string) {
   const run = await findRecoveryRun(runId);
   return run ? serializeRun(run) : null;
+}
+
+export async function getRecoveryRunWithArtifacts(runId: string) {
+  const run = await getRecoveryRun(runId);
+
+  if (!run) {
+    return null;
+  }
+
+  return {
+    run,
+    artifacts: await getRecoveryRunArtifacts(runId)
+  };
+}
+
+export async function getRecoveryRunArtifacts(runId: string) {
+  const db = getDb();
+  const [evidence] = await db
+    .select()
+    .from(runEvidence)
+    .where(eq(runEvidence.runId, runId))
+    .orderBy(desc(runEvidence.createdAt))
+    .limit(1);
+  const [aiTrace] = await db
+    .select()
+    .from(aiTraces)
+    .where(eq(aiTraces.runId, runId))
+    .orderBy(desc(aiTraces.createdAt))
+    .limit(1);
+  const [validation] = await db
+    .select()
+    .from(validationResults)
+    .where(eq(validationResults.runId, runId))
+    .orderBy(desc(validationResults.createdAt))
+    .limit(1);
+  const [patch] = await db
+    .select()
+    .from(patchPreviews)
+    .where(eq(patchPreviews.runId, runId))
+    .orderBy(desc(patchPreviews.createdAt))
+    .limit(1);
+  const [rerun] = await db
+    .select()
+    .from(rerunResults)
+    .where(eq(rerunResults.runId, runId))
+    .orderBy(desc(rerunResults.createdAt))
+    .limit(1);
+  const jiraResults = await db
+    .select()
+    .from(jiraPublishResults)
+    .where(eq(jiraPublishResults.runId, runId))
+    .orderBy(desc(jiraPublishResults.createdAt))
+    .limit(5);
+
+  return {
+    evidence: evidence ? serializeArtifact(evidence) : null,
+    aiTrace: aiTrace ? serializeArtifact(aiTrace) : null,
+    validation: validation ? serializeArtifact(validation) : null,
+    patch: patch ? serializeArtifact(patch) : null,
+    rerun: rerun ? serializeArtifact(rerun) : null,
+    jiraResults: jiraResults.map(serializeArtifact)
+  };
 }
 
 export async function findRecoveryRun(runId: string): Promise<SpecHealRun | null> {
@@ -138,4 +201,11 @@ export async function createRerunResult(
 ) {
   const [result] = await getDb().insert(rerunResults).values(values).returning();
   return result;
+}
+
+function serializeArtifact<T extends { createdAt: Date }>(artifact: T) {
+  return {
+    ...artifact,
+    createdAt: artifact.createdAt.toISOString()
+  };
 }
