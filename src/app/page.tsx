@@ -1,4 +1,5 @@
 import { getRuntimeReadiness } from "@/lib/env";
+import { SHOPFLOW_SCENARIOS } from "@/demo/shopflow";
 
 export default function Home() {
   const readiness = getRuntimeReadiness();
@@ -24,6 +25,21 @@ export default function Home() {
             </div>
           </div>
         ))}
+      </section>
+
+      <section className="scenarioLinks" aria-label="ShopFlow scenario links">
+        <h2>ShopFlow target states</h2>
+        <div>
+          {SHOPFLOW_SCENARIOS.map((scenario) => (
+            <a
+              href={`/shopflow?state=${scenario.runtimeState}`}
+              key={scenario.id}
+            >
+              <span>{scenario.title}</span>
+              <strong>{scenario.label}</strong>
+            </a>
+          ))}
+        </div>
       </section>
     </main>
   );

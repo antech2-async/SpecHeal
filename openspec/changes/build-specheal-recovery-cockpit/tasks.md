@@ -7,11 +7,11 @@
 
 ## 2. ShopFlow Checkout Demo
 
-- [ ] 2.1 Implement the ShopFlow Checkout route with order details, payment summary, and success state.
-- [ ] 2.2 Implement Healthy Flow state where baseline checkout reaches `Payment Success`.
-- [ ] 2.3 Implement Locator Drift state where baseline selector fails but payment behavior remains available.
-- [ ] 2.4 Implement Product Bug state where payment action is unavailable and user-visible evidence is shown.
-- [ ] 2.5 Add ShopFlow OpenSpec source text that remains selector-agnostic and behavior-first.
+- [x] 2.1 Implement the ShopFlow Checkout route with order details, payment summary, and success state.
+- [x] 2.2 Implement Healthy Flow state where baseline checkout reaches `Payment Success`.
+- [x] 2.3 Implement Locator Drift state where baseline selector fails but payment behavior remains available.
+- [x] 2.4 Implement Product Bug state where payment action is unavailable and user-visible evidence is shown.
+- [x] 2.5 Add ShopFlow OpenSpec source text that remains selector-agnostic and behavior-first.
 
 ## 3. Recovery Run Orchestration
 

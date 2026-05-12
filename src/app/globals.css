@@ -93,6 +93,42 @@ p {
   font-size: 14px;
 }
 
+.scenarioLinks {
+  margin-top: 32px;
+}
+
+.scenarioLinks h2 {
+  margin: 0 0 12px;
+  font-size: 18px;
+}
+
+.scenarioLinks div {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.scenarioLinks a {
+  display: grid;
+  gap: 4px;
+  min-height: 88px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-raised);
+  color: var(--text);
+  padding: 16px;
+  text-decoration: none;
+}
+
+.scenarioLinks a:hover {
+  border-color: var(--action);
+}
+
+.scenarioLinks span {
+  color: var(--muted);
+  font-size: 14px;
+}
+
 .dot {
   width: 10px;
   height: 10px;
@@ -107,4 +143,231 @@ p {
 
 .dot.missing {
   background: var(--bug);
+}
+
+.shopflowShell {
+  width: min(1180px, calc(100vw - 32px));
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 36px 0;
+}
+
+.shopflowHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 24px;
+}
+
+.shopflowHeader h1,
+.successPanel h1 {
+  max-width: 680px;
+  font-size: 44px;
+}
+
+.shopflowEyebrow {
+  margin: 0 0 10px;
+  color: var(--action);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.scenarioBadge {
+  min-width: 180px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 14px;
+}
+
+.scenarioBadge span {
+  display: block;
+  color: var(--dim);
+  font-size: 13px;
+}
+
+.scenarioBadge strong {
+  display: block;
+  margin-top: 4px;
+}
+
+.checkoutGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.orderPanel,
+.paymentPanel,
+.successPanel {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 20px;
+}
+
+.orderPanel h2,
+.paymentPanel h2 {
+  margin: 0 0 16px;
+  font-size: 18px;
+}
+
+.itemList {
+  display: grid;
+  gap: 12px;
+}
+
+.shopItem {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-raised);
+  padding: 14px;
+}
+
+.shopItem h3 {
+  margin: 0 0 4px;
+  font-size: 16px;
+}
+
+.shopItem p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.shopItem strong {
+  white-space: nowrap;
+}
+
+.itemThumb {
+  display: grid;
+  width: 56px;
+  height: 56px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #172131;
+  color: var(--action);
+  font-weight: 800;
+}
+
+.totals {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+}
+
+.totals div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.totals dt {
+  color: var(--muted);
+}
+
+.totals dd {
+  margin: 0;
+  font-weight: 700;
+}
+
+.totalRow {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+
+.paymentAction {
+  display: grid;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.paymentIntent {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.payButton,
+.shopflowLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--action);
+  color: #041014;
+  font: inherit;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.payButton:hover,
+.shopflowLink:hover {
+  background: #7af0f8;
+}
+
+.paymentUnavailable {
+  display: grid;
+  gap: 6px;
+  border: 1px solid rgba(255, 107, 107, 0.55);
+  border-radius: 8px;
+  background: rgba(255, 107, 107, 0.08);
+  color: #ffdada;
+  padding: 14px;
+}
+
+.paymentUnavailable span {
+  color: #f0b7b7;
+  font-size: 14px;
+}
+
+.successPanel {
+  max-width: 760px;
+  margin: 72px auto 0;
+}
+
+.successPanel p {
+  margin-bottom: 24px;
+}
+
+.shopflowLink {
+  width: fit-content;
+  padding: 0 18px;
+}
+
+@media (max-width: 760px) {
+  .shopflowHeader,
+  .checkoutGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .shopflowHeader {
+    display: grid;
+  }
+
+  .shopflowHeader h1,
+  .successPanel h1,
+  h1 {
+    font-size: 36px;
+  }
+
+  .shopItem {
+    grid-template-columns: 48px minmax(0, 1fr);
+  }
+
+  .shopItem strong {
+    grid-column: 2;
+  }
 }
