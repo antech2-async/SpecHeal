@@ -1,0 +1,76 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: specheal-postgres-data
+  namespace: merge-kalau-berani
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: specheal-postgres
+  namespace: merge-kalau-berani
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: specheal-postgres
+  template:
+    metadata:
+      labels:
+        app: specheal-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: specheal-secrets
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: specheal-secrets
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: specheal-secrets
+                  key: POSTGRES_DB
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - specheal
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: postgres-data
+          persistentVolumeClaim:
+            claimName: specheal-postgres-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: specheal-postgres
+  namespace: merge-kalau-berani
+spec:
+  selector:
+    app: specheal-postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432

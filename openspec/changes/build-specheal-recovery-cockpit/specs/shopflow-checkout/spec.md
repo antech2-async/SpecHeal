@@ -41,16 +41,15 @@ The ShopFlow Checkout application SHALL provide a healthy scenario where the exp
 - **THEN** the checkout test reaches `Payment Success` without recovery
 
 #### Scenario: Healthy flow does not require AI recovery
-- **WHEN** the Healthy Flow scenario passes on the first Playwright run
+- **WHEN** the Healthy Flow scenario reaches the expected success outcome on the first execution
 - **THEN** SpecHeal can classify the run as `NO_HEAL_NEEDED`
 
-### Requirement: Locator drift state
-The ShopFlow Checkout application SHALL provide a locator drift scenario where the baseline selector no longer matches while the user-visible payment behavior remains correct.
+### Requirement: Payment implementation drift state
+The ShopFlow Checkout application SHALL provide a drift scenario where the user-visible payment behavior remains correct after implementation changes.
 
-#### Scenario: Baseline selector fails but behavior remains
-- **WHEN** SpecHeal runs the Locator Drift scenario using the baseline selector
-- **THEN** the first Playwright action fails because the baseline selector is unavailable
-- **AND** the page still contains a visible and enabled payment action that satisfies checkout payment intent
+#### Scenario: Changed implementation preserves payment behavior
+- **WHEN** the Locator Drift scenario is rendered
+- **THEN** the page still contains a visible and enabled payment action that satisfies checkout payment intent
 
 #### Scenario: Drift state can complete payment with replacement action
 - **WHEN** a valid replacement payment action is activated in the Locator Drift scenario

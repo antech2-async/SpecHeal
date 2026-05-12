@@ -24,6 +24,8 @@ pnpm-debug.log*
 .env.test.local
 .env.production.local
 .env*.local
+k8s/*.local.yaml
+k8s/*.local.env
 
 # ----- Vercel -----
 .vercel
@@ -35,6 +37,8 @@ next-env.d.ts
 # ----- Testing -----
 coverage/
 .nyc_output/
+test-results/
+playwright-report/
 
 # ----- OS -----
 .DS_Store
