@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/playwright:v1.56.1-noble AS deps
+FROM mcr.microsoft.com/playwright:v1.60.0-noble AS deps
 
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -6,7 +6,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 COPY package.json package-lock.json ./
 RUN npm ci
 
-FROM mcr.microsoft.com/playwright:v1.56.1-noble AS builder
+FROM mcr.microsoft.com/playwright:v1.60.0-noble AS builder
 
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -17,7 +17,7 @@ COPY . .
 RUN npm run build
 RUN npm prune --omit=dev
 
-FROM mcr.microsoft.com/playwright:v1.56.1-noble AS runner
+FROM mcr.microsoft.com/playwright:v1.60.0-noble AS runner
 
 WORKDIR /app
 ENV NODE_ENV=production
