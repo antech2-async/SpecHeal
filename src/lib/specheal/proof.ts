@@ -171,6 +171,8 @@ export async function runPatchedCheckoutProof(options: {
         env: {
           ...process.env,
           NEXT_PUBLIC_BASE_URL: getAppBaseUrl(),
+          PLAYWRIGHT_OUTPUT_DIR:
+            process.env.PLAYWRIGHT_OUTPUT_DIR || "/tmp/specheal-test-results",
           SHOPFLOW_STATE: options.scenario.runtimeState,
           PLAYWRIGHT_HEADLESS: String(process.env.PLAYWRIGHT_HEADLESS ?? "true")
         }
@@ -191,8 +193,7 @@ export async function runPatchedCheckoutProof(options: {
       passed: false,
       expectedText: options.scenario.expectedText,
       durationMs: elapsedMs(startedAt),
-      errorMessage:
-        error instanceof Error ? error.message : "Patched Playwright rerun failed."
+      errorMessage: formatExecError(error)
     };
   }
 }
@@ -335,4 +336,22 @@ function locatorForSelector(page: Page, selector: string) {
 
 function elapsedMs(startedAt: number) {
   return Math.round(performance.now() - startedAt);
+}
+
+function formatExecError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return "Patched Playwright rerun failed.";
+  }
+
+  const details = error as Error & {
+    stderr?: string;
+    stdout?: string;
+  };
+  const output = [details.message, details.stdout, details.stderr]
+    .filter(Boolean)
+    .join("\n")
+    .replace(/\u001b\[[0-9;]*[A-Za-z]/g, "")
+    .trim();
+
+  return output || "Patched Playwright rerun failed.";
 }
