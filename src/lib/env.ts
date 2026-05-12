@@ -39,9 +39,19 @@ export const openAiEnvSchema = serverEnvSchema.pick({
   OPENAI_MODEL: true
 });
 
+export const jiraEnvSchema = serverEnvSchema.pick({
+  JIRA_SITE_URL: true,
+  JIRA_USER_EMAIL: true,
+  JIRA_API_TOKEN: true,
+  JIRA_PROJECT_KEY: true,
+  JIRA_TASK_ISSUE_TYPE: true,
+  JIRA_BUG_ISSUE_TYPE: true
+});
+
 export type ServerEnv = z.infer<typeof serverEnvSchema>;
 export type DatabaseEnv = z.infer<typeof databaseEnvSchema>;
 export type OpenAIEnv = z.infer<typeof openAiEnvSchema>;
+export type JiraEnv = z.infer<typeof jiraEnvSchema>;
 
 export function readServerEnv(): ServerEnv {
   return serverEnvSchema.parse(process.env);
@@ -53,6 +63,10 @@ export function readDatabaseEnv(): DatabaseEnv {
 
 export function readOpenAIEnv(): OpenAIEnv {
   return openAiEnvSchema.parse(process.env);
+}
+
+export function readJiraEnv(): JiraEnv {
+  return jiraEnvSchema.parse(process.env);
 }
 
 export function getAppBaseUrl() {

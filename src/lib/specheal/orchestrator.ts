@@ -1,5 +1,6 @@
 import { findShopFlowScenario } from "@/demo/shopflow";
 import { executeCheckoutAttempt } from "./evidence";
+import { publishRunToJira } from "./jira";
 import { generateOpenAIVerdict } from "./openai-verdict";
 import {
   applySafeLocatorPatch,
@@ -46,7 +47,7 @@ async function orchestrateRecoveryRun(runId: string) {
   const scenario = findShopFlowScenario(run.scenarioId);
 
   if (!scenario) {
-    await updateRecoveryRun(runId, {
+    await updateTerminalRun(runId, {
       status: "failed",
       verdict: "RUN_ERROR",
       failedStage: "scenario_lookup",
@@ -106,7 +107,7 @@ async function orchestrateRecoveryRun(runId: string) {
     };
 
     if (attempt.passed) {
-      await updateRecoveryRun(runId, {
+      await updateTerminalRun(runId, {
         status: "completed",
         verdict: "NO_HEAL_NEEDED",
         reason:
@@ -226,7 +227,7 @@ async function orchestrateRecoveryRun(runId: string) {
         );
 
         if (!validation.passed || !aiResult.verdict.candidateSelector) {
-          await updateRecoveryRun(runId, {
+          await updateTerminalRun(runId, {
             status: "failed",
             verdict: "HEAL",
             reason:
@@ -277,7 +278,7 @@ async function orchestrateRecoveryRun(runId: string) {
         );
 
         if (!rerun.passed) {
-          await updateRecoveryRun(runId, {
+          await updateTerminalRun(runId, {
             status: "failed",
             verdict: "HEAL",
             reason:
@@ -301,7 +302,7 @@ async function orchestrateRecoveryRun(runId: string) {
           applied: patch.applied
         });
 
-        await updateRecoveryRun(runId, {
+        await updateTerminalRun(runId, {
           status: "completed",
           verdict: "HEAL",
           reason: aiResult.verdict.reason,
@@ -345,7 +346,7 @@ async function orchestrateRecoveryRun(runId: string) {
               verdict: aiResult.verdict
             });
 
-      await updateRecoveryRun(runId, {
+      await updateTerminalRun(runId, {
         status: "completed",
         verdict: aiResult.verdict.verdict,
         reason: aiResult.verdict.reason,
@@ -370,7 +371,7 @@ async function orchestrateRecoveryRun(runId: string) {
       const message =
         error instanceof Error ? error.message : "Unknown OpenAI verdict failure.";
 
-      await updateRecoveryRun(runId, {
+      await updateTerminalRun(runId, {
         status: "failed",
         verdict: "RUN_ERROR",
         reason:
@@ -403,7 +404,7 @@ async function orchestrateRecoveryRun(runId: string) {
       return;
     }
   } catch (error) {
-    await updateRecoveryRun(runId, {
+    await updateTerminalRun(runId, {
       status: "failed",
       verdict: "RUN_ERROR",
       failedStage: "playwright_execution",
@@ -432,4 +433,12 @@ async function orchestrateRecoveryRun(runId: string) {
       )
     });
   }
+}
+
+async function updateTerminalRun(
+  runId: string,
+  values: Parameters<typeof updateRecoveryRun>[1]
+) {
+  await updateRecoveryRun(runId, values);
+  await publishRunToJira(runId);
 }

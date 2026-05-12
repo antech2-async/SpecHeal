@@ -49,15 +49,15 @@
 
 ## 7. Jira Integration
 
-- [ ] 7.1 Implement Jira configuration reader and readiness status for `JIRA_SITE_URL`, `JIRA_USER_EMAIL`, `JIRA_API_TOKEN`, `JIRA_PROJECT_KEY`, `JIRA_TASK_ISSUE_TYPE`, and `JIRA_BUG_ISSUE_TYPE`.
-- [ ] 7.2 Implement Jira Cloud create issue client using Atlassian email and API token.
-- [ ] 7.3 Build Atlassian Document Format descriptions for actionable terminal run result types.
-- [ ] 7.4 Persist `NO_HEAL_NEEDED` runs as audit reports without creating Jira issues by default.
-- [ ] 7.5 Auto-publish `HEAL` runs to Jira as patch review Tasks.
-- [ ] 7.6 Auto-publish `PRODUCT BUG` runs to Jira as Bugs.
-- [ ] 7.7 Auto-publish `SPEC OUTDATED` and operational error runs to Jira as Tasks.
-- [ ] 7.8 Persist Jira issue key, URL, issue ID, publish timestamp, and failure details.
-- [ ] 7.9 Implement retry publish endpoint for runs with `jira_publish_failed`.
+- [x] 7.1 Implement Jira configuration reader and readiness status for `JIRA_SITE_URL`, `JIRA_USER_EMAIL`, `JIRA_API_TOKEN`, `JIRA_PROJECT_KEY`, `JIRA_TASK_ISSUE_TYPE`, and `JIRA_BUG_ISSUE_TYPE`.
+- [x] 7.2 Implement Jira Cloud create issue client using Atlassian email and API token.
+- [x] 7.3 Build Atlassian Document Format descriptions for actionable terminal run result types.
+- [x] 7.4 Persist `NO_HEAL_NEEDED` runs as audit reports without creating Jira issues by default.
+- [x] 7.5 Auto-publish `HEAL` runs to Jira as patch review Tasks.
+- [x] 7.6 Auto-publish `PRODUCT BUG` runs to Jira as Bugs.
+- [x] 7.7 Auto-publish `SPEC OUTDATED` and operational error runs to Jira as Tasks.
+- [x] 7.8 Persist Jira issue key, URL, issue ID, publish timestamp, and failure details.
+- [x] 7.9 Implement retry publish endpoint for runs with `jira_publish_failed`.
 
 ## 8. Dashboard and Report UX
 
