@@ -12,10 +12,10 @@ import {
 } from "@/db/schema";
 import {
   findShopFlowScenario,
-  SHOPFLOW_OPENSPEC_CLAUSE,
   SHOPFLOW_PROJECT
 } from "@/demo/shopflow";
 import { getAppBaseUrl } from "@/lib/env";
+import { loadOpenSpecClause } from "./openspec";
 import { createInitialRunReport, serializeRun } from "./run-report";
 
 const RECENT_RUN_LIMIT = 20;
@@ -38,6 +38,9 @@ export async function createRecoveryRun(scenarioId: string) {
     `${SHOPFLOW_PROJECT.targetPath}?state=${scenario.runtimeState}`,
     getAppBaseUrl()
   ).toString();
+  const openSpecClause = await loadOpenSpecClause(
+    SHOPFLOW_PROJECT.targetOpenSpecPath
+  );
 
   const [run] = await getDb()
     .insert(spechealRuns)
@@ -50,12 +53,12 @@ export async function createRecoveryRun(scenarioId: string) {
       baselineSelector: scenario.oldSelector,
       testFilePath: scenario.patch?.file ?? "tests/shopflow-checkout.spec.ts",
       openSpecPath: SHOPFLOW_PROJECT.targetOpenSpecPath,
-      openSpecClause: SHOPFLOW_OPENSPEC_CLAUSE,
+      openSpecClause,
       report: createInitialRunReport(
         scenario,
         targetUrl,
         SHOPFLOW_PROJECT.targetOpenSpecPath,
-        SHOPFLOW_OPENSPEC_CLAUSE
+        openSpecClause
       )
     })
     .returning();

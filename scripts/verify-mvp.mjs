@@ -20,26 +20,36 @@ function assertIncludes(file, values) {
 const shopflowSpec = read(
   "openspec/changes/build-specheal-recovery-cockpit/specs/shopflow-checkout/spec.md"
 );
-const demoSource = read("src/demo/shopflow.ts");
 const evidenceSource = read("src/lib/specheal/evidence.ts");
 const jiraSource = read("src/lib/specheal/jira.ts");
 const openAiSource = read("src/lib/specheal/openai-verdict.ts");
+const openSpecLoaderSource = read("src/lib/specheal/openspec.ts");
 const orchestratorSource = read("src/lib/specheal/orchestrator.ts");
-
-const clauseMatch = demoSource.match(
-  /export const SHOPFLOW_OPENSPEC_CLAUSE = `([\s\S]*?)`;/m
-);
-const clause = clauseMatch?.[1] ?? "";
+const runsSource = read("src/lib/specheal/runs.ts");
 
 check(
   "ShopFlow OpenSpec stays selector-agnostic",
   !/[#][a-z0-9_-]+|data-testid|getByTestId|Playwright|baseline selector/i.test(
     shopflowSpec
-  ) &&
-    !/[#][a-z0-9_-]+|data-testid|getByTestId|Playwright|baseline selector/i.test(
-      clause
-    ),
+  ),
   "ShopFlow requirements must describe behavior without concrete selectors."
+);
+
+check(
+  "Runtime loads ShopFlow OpenSpec from artifact",
+  assertIncludes(openSpecLoaderSource, [
+    "readFile",
+    "process.cwd()",
+    "openspec",
+    "ALLOWED_OPENSPEC_FILES",
+    "Refusing to load unmanaged OpenSpec file"
+  ]) &&
+    assertIncludes(runsSource, [
+      "loadOpenSpecClause",
+      "SHOPFLOW_PROJECT.targetOpenSpecPath",
+      "openSpecClause"
+    ]),
+  "Recovery runs should use the checked-in OpenSpec artifact instead of a copied clause string."
 );
 
 check(

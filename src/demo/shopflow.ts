@@ -30,27 +30,6 @@ export const SHOPFLOW_PROJECT = {
     "openspec/changes/build-specheal-recovery-cockpit/specs/shopflow-checkout/spec.md"
 };
 
-export const SHOPFLOW_OPENSPEC_CLAUSE = `Requirement: Checkout payment completion
-The ShopFlow Checkout application SHALL allow a user with items in the cart to complete payment from the checkout page when payment is available.
-
-Scenario: Successful payment
-- WHEN the checkout page is ready and the user confirms payment
-- THEN the system displays Payment Success
-
-Requirement: Payment action availability
-The ShopFlow Checkout application SHALL expose a visible and enabled payment confirmation action when checkout payment is available.
-
-Scenario: Payment action ready
-- WHEN a user views checkout with payment available
-- THEN a payment action is visible, enabled, and communicates payment or checkout intent
-
-Requirement: Product bug state
-The ShopFlow Checkout application SHALL provide a product bug scenario where the payment action required by checkout behavior is missing or unavailable.
-
-Scenario: Payment action unavailable
-- WHEN SpecHeal runs the Product Bug scenario
-- THEN no visible and enabled payment action that satisfies checkout payment intent is available`;
-
 export const SHOPFLOW_SCENARIOS: ShopFlowScenario[] = [
   {
     id: "healthy-flow",

@@ -30,6 +30,7 @@ COPY --from=builder --chown=pwuser:pwuser /app/node_modules ./node_modules
 COPY --from=builder --chown=pwuser:pwuser /app/package.json ./package.json
 COPY --from=builder --chown=pwuser:pwuser /app/playwright.config.ts ./playwright.config.ts
 COPY --from=builder --chown=pwuser:pwuser /app/tests ./tests
+COPY --from=builder --chown=pwuser:pwuser /app/openspec ./openspec
 
 USER pwuser
 EXPOSE 3000
