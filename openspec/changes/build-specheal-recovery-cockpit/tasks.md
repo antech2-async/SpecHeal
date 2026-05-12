@@ -61,13 +61,13 @@
 
 ## 8. Dashboard and Report UX
 
-- [ ] 8.1 Build main dashboard with project status, scenario picker, run CTA, and readiness indicators.
-- [ ] 8.2 Build run timeline showing Playwright result, evidence, OpenSpec clause, OpenAI verdict, proof/decision, and Jira publish result when applicable.
-- [ ] 8.3 Build evidence and output panels for screenshot, candidate summary, patch preview, product bug report, and Jira status.
-- [ ] 8.4 Build AI trace drawer showing prompt, raw output, parsed output, validation details, token usage, and cost estimate.
-- [ ] 8.5 Build full report page by run ID.
-- [ ] 8.6 Ensure failed OpenAI and failed Jira states are visible and understandable.
-- [ ] 8.7 Make healthy runs visibly report-only so users do not expect a Jira issue.
+- [x] 8.1 Build main dashboard with project status, scenario picker, run CTA, and readiness indicators.
+- [x] 8.2 Build run timeline showing Playwright result, evidence, OpenSpec clause, OpenAI verdict, proof/decision, and Jira publish result when applicable.
+- [x] 8.3 Build evidence and output panels for screenshot, candidate summary, patch preview, product bug report, and Jira status.
+- [x] 8.4 Build AI trace drawer showing prompt, raw output, parsed output, validation details, token usage, and cost estimate.
+- [x] 8.5 Build full report page by run ID.
+- [x] 8.6 Ensure failed OpenAI and failed Jira states are visible and understandable.
+- [x] 8.7 Make healthy runs visibly report-only so users do not expect a Jira issue.
 
 ## 9. Kubernetes Deployment
 
