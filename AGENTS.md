@@ -104,7 +104,12 @@ Recommended action: Restore the payment CTA or update the ShopFlow OpenSpec if t
 
 ## OpenSpec Direction
 
-OpenSpec has not been authored in this repo yet.
+OpenSpec artifacts now exist in this repo under:
+
+- `openspec/config.yaml`
+- `openspec/changes/build-specheal-recovery-cockpit/`
+
+Treat the active OpenSpec change as the implementation contract until it is revised or archived.
 
 When creating the first OpenSpec artifacts, separate these two domains:
 
@@ -129,7 +134,20 @@ SpecHeal recovery OpenSpec should define:
 - rerun proof,
 - reviewable patch or bug report,
 - AI trace transparency,
-- AI cost and fallback transparency.
+- AI cost transparency,
+- honest OpenAI failure handling without deterministic or precomputed verdict fallback,
+- Jira publishing for actionable results.
+
+## Current Alignment
+
+- Build this repo as the from-zero hackathon app. Older experiments may inform standards and domain understanding, but do not copy pre-existing non-open-source code into this repo.
+- SpecHeal is a proposal-and-proof system, not an automatic product-code fixer.
+- `HEAL` means SpecHeal proposes a reviewable Playwright test locator patch after OpenSpec guardrail, browser validation, and rerun proof.
+- `PRODUCT BUG` means required product behavior is missing or unavailable; SpecHeal produces evidence and a Jira Bug, not a safe patch.
+- `SPEC OUTDATED` means the test/spec mapping needs human review; SpecHeal produces a Jira Task.
+- `NO_HEAL_NEEDED` means the baseline run passed; persist it as an audit report and do not create a Jira issue by default.
+- Live OpenAI is required for failed-run recovery verdicts. If OpenAI is unavailable or invalid, record an honest operational failure and do not substitute a hardcoded verdict.
+- Live Jira issue creation is required for actionable results: `HEAL`, `PRODUCT BUG`, `SPEC OUTDATED`, and operational run errors. Jira is not required for healthy/no-heal reports by default.
 
 ## Suggested Architecture
 
@@ -151,11 +169,12 @@ Dashboard
 -> run old selector
 -> capture evidence on failure
 -> load relevant OpenSpec clause
--> get AI or deterministic fallback verdict
+-> get live OpenAI structured verdict
 -> validate candidate selector if HEAL
 -> rerun checkout with healed selector
 -> save structured report
--> dashboard renders timeline, patch/report, and trace
+-> publish Jira issue when the result is actionable
+-> dashboard renders timeline, patch/report, Jira status when applicable, and trace
 ```
 
 ## UX Direction

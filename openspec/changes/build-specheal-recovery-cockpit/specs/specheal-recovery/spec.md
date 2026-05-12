@@ -44,7 +44,9 @@ The system SHALL classify successful baseline execution as `NO_HEAL_NEEDED`.
 
 #### Scenario: Successful run still reaches terminal workflow
 - **WHEN** a run is classified as `NO_HEAL_NEEDED`
-- **THEN** the run becomes terminal and remains eligible for Jira publishing
+- **THEN** the run becomes terminal
+- **AND** the run is persisted as an audit report
+- **AND** the system does not create a Jira issue for the healthy result by default
 
 ### Requirement: Failure evidence capture
 The system SHALL capture structured evidence when the Playwright attempt fails.
@@ -111,7 +113,8 @@ The system SHALL use live OpenAI calls to produce recovery verdicts for failed r
 
 #### Scenario: Demo does not silently fallback
 - **WHEN** OpenAI is unavailable, returns invalid output, or cannot be parsed
-- **THEN** the run records a clear AI failure state instead of silently substituting a deterministic verdict
+- **THEN** the run records a clear AI failure state instead of silently substituting a deterministic or precomputed verdict
+- **AND** the report shows the recovery analysis did not produce a trusted AI verdict
 
 ### Requirement: Verdict set
 The system SHALL support `HEAL`, `PRODUCT BUG`, `SPEC OUTDATED`, and `NO_HEAL_NEEDED` as recovery verdicts.
@@ -161,6 +164,11 @@ The system SHALL generate a reviewable patch preview for safe `HEAL` results.
 - **WHEN** a patch preview is generated
 - **THEN** the system does not auto-commit, auto-merge, or directly modify repository code as part of the MVP
 
+#### Scenario: Patch targets the test, not product code
+- **WHEN** the system presents a safe `HEAL` patch
+- **THEN** the patch is presented as a proposed test locator update
+- **AND** the system does not claim to repair product implementation code
+
 ### Requirement: Product bug report output
 The system SHALL generate a structured product bug report when recovery is not safe because required behavior is missing.
 
@@ -172,16 +180,22 @@ The system SHALL generate a structured product bug report when recovery is not s
 - **WHEN** the final verdict is `PRODUCT BUG`
 - **THEN** the report does not present any selector patch as the recommended action
 
+#### Scenario: Product bug remains an escalation
+- **WHEN** the final verdict is `PRODUCT BUG`
+- **THEN** the report recommends fixing the product behavior or updating OpenSpec if the behavior intentionally changed
+- **AND** the system does not claim to automatically fix the product bug
+
 ### Requirement: Run timeline report
 The system SHALL display every run as a timeline report.
 
 #### Scenario: Timeline shows recovery steps
 - **WHEN** a run reaches a terminal state
-- **THEN** the dashboard shows Playwright result, evidence, OpenSpec clause, OpenAI verdict, proof or bug decision, and Jira publish result
+- **THEN** the dashboard shows Playwright result, evidence, OpenSpec clause, OpenAI verdict, proof or bug decision, and Jira publish result when applicable
 
 #### Scenario: Timeline handles healthy runs
 - **WHEN** a run is `NO_HEAL_NEEDED`
 - **THEN** the timeline marks AI recovery, candidate validation, and rerun proof as skipped or not needed
+- **AND** the timeline marks Jira publishing as not required by default
 
 ### Requirement: AI trace transparency
 The system SHALL expose the trace needed to audit an AI-assisted decision.
@@ -189,6 +203,11 @@ The system SHALL expose the trace needed to audit an AI-assisted decision.
 #### Scenario: Trace shows prompt and response
 - **WHEN** a run uses OpenAI
 - **THEN** the report shows system prompt, user prompt, raw response, and parsed response
+
+#### Scenario: Trace distinguishes unavailable AI
+- **WHEN** OpenAI is not configured or fails before returning a trusted response
+- **THEN** the report shows the failed AI stage and error context
+- **AND** the report does not present a hardcoded replacement verdict as an AI decision
 
 #### Scenario: Trace labels confidence correctly
 - **WHEN** the report displays confidence
@@ -218,7 +237,7 @@ The system SHALL provide a full report view for each persisted run.
 
 #### Scenario: User opens full report
 - **WHEN** a user opens a run report by ID
-- **THEN** the system displays run overview, timeline, evidence, OpenSpec clause, AI trace, proof details, and Jira publish result
+- **THEN** the system displays run overview, timeline, evidence, OpenSpec clause, AI trace, proof details, and Jira publish result when applicable
 
 #### Scenario: Incomplete run report is handled
 - **WHEN** a run exists but is not complete
@@ -233,7 +252,7 @@ The system SHALL record operational errors as terminal run results when a recove
 
 #### Scenario: Runtime error remains publishable
 - **WHEN** a run ends in an operational error
-- **THEN** the run remains eligible for Jira publishing as an operational follow-up
+- **THEN** the run remains eligible for Jira publishing as an operational follow-up when Jira is configured
 
 ### Requirement: Kubernetes deployment readiness
 The system SHALL be deployable as runtime artifacts on Kubernetes.

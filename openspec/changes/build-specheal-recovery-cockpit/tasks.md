@@ -34,7 +34,8 @@
 - [ ] 5.2 Implement live OpenAI call with structured response parsing.
 - [ ] 5.3 Support verdicts `HEAL`, `PRODUCT BUG`, and `SPEC OUTDATED` for failed runs.
 - [ ] 5.4 Store system prompt, user prompt, raw response, parsed response, usage metadata, duration, and estimated cost when available.
-- [ ] 5.5 Implement clear AI failure handling without silently substituting deterministic verdicts.
+- [ ] 5.5 Implement clear AI failure handling without silently substituting deterministic or precomputed verdicts.
+- [ ] 5.6 Block recovery verdict generation when OpenAI is not configured, and surface a retryable operational failure instead.
 
 ## 6. Validation, Rerun, and Output Generation
 
@@ -43,13 +44,14 @@
 - [ ] 6.3 Generate safe patch preview only after validation and rerun pass.
 - [ ] 6.4 Generate product bug report output when required OpenSpec behavior is missing.
 - [ ] 6.5 Generate operational error report output when the run fails before a recovery verdict.
+- [ ] 6.6 Ensure product bug output never claims that SpecHeal repaired product code.
 
 ## 7. Jira Integration
 
 - [ ] 7.1 Implement Jira configuration reader and readiness status.
 - [ ] 7.2 Implement Jira Cloud create issue client using Atlassian email and API token.
-- [ ] 7.3 Build Atlassian Document Format descriptions for all terminal run result types.
-- [ ] 7.4 Auto-publish `NO_HEAL_NEEDED` runs to Jira as audit Tasks.
+- [ ] 7.3 Build Atlassian Document Format descriptions for actionable terminal run result types.
+- [ ] 7.4 Persist `NO_HEAL_NEEDED` runs as audit reports without creating Jira issues by default.
 - [ ] 7.5 Auto-publish `HEAL` runs to Jira as patch review Tasks.
 - [ ] 7.6 Auto-publish `PRODUCT BUG` runs to Jira as Bugs.
 - [ ] 7.7 Auto-publish `SPEC OUTDATED` and operational error runs to Jira as Tasks.
@@ -59,11 +61,12 @@
 ## 8. Dashboard and Report UX
 
 - [ ] 8.1 Build main dashboard with project status, scenario picker, run CTA, and readiness indicators.
-- [ ] 8.2 Build run timeline showing Playwright result, evidence, OpenSpec clause, OpenAI verdict, proof/decision, and Jira publish result.
+- [ ] 8.2 Build run timeline showing Playwright result, evidence, OpenSpec clause, OpenAI verdict, proof/decision, and Jira publish result when applicable.
 - [ ] 8.3 Build evidence and output panels for screenshot, candidate summary, patch preview, product bug report, and Jira status.
 - [ ] 8.4 Build AI trace drawer showing prompt, raw output, parsed output, validation details, token usage, and cost estimate.
 - [ ] 8.5 Build full report page by run ID.
 - [ ] 8.6 Ensure failed OpenAI and failed Jira states are visible and understandable.
+- [ ] 8.7 Make healthy runs visibly report-only so users do not expect a Jira issue.
 
 ## 9. Kubernetes Deployment
 
@@ -78,7 +81,9 @@
 - [ ] 10.1 Add tests for OpenSpec clause alignment and selector-agnostic ShopFlow requirements.
 - [ ] 10.2 Add tests for DOM cleaning, candidate extraction, and zero-candidate behavior.
 - [ ] 10.3 Add tests or scripted checks for Jira payload mapping.
-- [ ] 10.4 Run Locator Drift scenario end-to-end with live OpenAI and Jira Task creation.
-- [ ] 10.5 Run Product Bug scenario end-to-end with live OpenAI and Jira Bug creation.
-- [ ] 10.6 Verify recent runs and full report persist after reload.
-- [ ] 10.7 Prepare a 5-minute demo script using the deployed Kubernetes URL.
+- [ ] 10.4 Add tests or scripted checks proving no deterministic fallback is used when OpenAI is unavailable.
+- [ ] 10.5 Add tests or scripted checks proving `NO_HEAL_NEEDED` creates a report without Jira publish.
+- [ ] 10.6 Run Locator Drift scenario end-to-end with live OpenAI and Jira Task creation.
+- [ ] 10.7 Run Product Bug scenario end-to-end with live OpenAI and Jira Bug creation.
+- [ ] 10.8 Verify recent runs and full report persist after reload.
+- [ ] 10.9 Prepare a 5-minute demo script using the deployed Kubernetes URL.

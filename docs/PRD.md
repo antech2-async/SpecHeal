@@ -14,7 +14,7 @@ Ketika test gagal, SpecHeal menjawab satu pertanyaan penting:
 
 > Apakah test ini aman diperbaiki, atau produk benar-benar rusak?
 
-SpecHeal menjalankan test di browser, mengambil evidence kegagalan, membaca OpenSpec sebagai kontrak perilaku, meminta OpenAI menghasilkan verdict terstruktur, memvalidasi candidate selector di browser, membuktikan hasil dengan rerun, menyimpan report ke PostgreSQL, lalu mempublikasikan action ke Jira.
+SpecHeal menjalankan test di browser, mengambil evidence kegagalan, membaca OpenSpec sebagai kontrak perilaku, meminta OpenAI menghasilkan verdict terstruktur, memvalidasi candidate selector di browser, membuktikan hasil dengan rerun, menyimpan report ke PostgreSQL, lalu mempublikasikan hasil yang membutuhkan action ke Jira.
 
 Core thesis:
 
@@ -165,7 +165,7 @@ Kebutuhan:
 - melihat produk yang benar-benar berjalan,
 - memahami problem dengan cepat,
 - melihat AI dipakai dengan guardrail,
-- melihat output nyata ke Jira,
+- melihat output actionable masuk ke Jira,
 - menilai end-to-end execution.
 
 Success signal:
@@ -219,7 +219,7 @@ Kebutuhan:
 
 Success signal:
 
-- lead dapat melihat audit trail dan Jira output dari setiap recovery run.
+- lead dapat melihat audit trail untuk setiap run dan Jira output untuk hasil yang membutuhkan action.
 
 ## 8. MVP Scope
 
@@ -553,7 +553,7 @@ Acceptance criteria:
 - Menyimpan evidence summary.
 - Menyimpan patch preview.
 - Menyimpan validation dan rerun result.
-- Menyimpan Jira publish result.
+- Menyimpan Jira publish result jika run membutuhkan Jira action.
 - Menyediakan recent runs.
 - Menyediakan full report by run ID.
 
@@ -570,7 +570,7 @@ Timeline minimal berisi:
 3. OpenSpec clause.
 4. OpenAI verdict.
 5. Healing proof atau bug decision.
-6. Jira publish result.
+6. Jira publish result jika applicable, atau status report-only untuk healthy run.
 
 ### FR-015 Full Report
 
@@ -584,7 +584,7 @@ Acceptance criteria:
 - Full report menampilkan OpenSpec clause.
 - Full report menampilkan AI trace.
 - Full report menampilkan validation/rerun proof.
-- Full report menampilkan Jira issue result.
+- Full report menampilkan Jira issue result jika applicable.
 
 ### FR-016 Kubernetes Deployment
 
@@ -666,7 +666,7 @@ PostgreSQL menyimpan:
 - patch preview,
 - validation result,
 - rerun result,
-- Jira publish result.
+- Jira publish result jika applicable.
 
 ### 13.4 Kubernetes
 
@@ -748,14 +748,14 @@ Prinsip:
 - evidence ringkas di permukaan,
 - detail audit tersedia di drawer/full report,
 - OpenSpec tampil sebagai locked source of truth,
-- Jira status tampil sebagai final workflow step.
+- Jira status tampil sebagai final workflow step ketika run membutuhkan action.
 
 Primary layout:
 
 - top bar: brand, project, selected scenario, status/verdict,
 - control panel: scenario picker dan run CTA,
 - report panel: timeline run,
-- evidence panel: screenshot, patch, Jira status,
+- evidence panel: screenshot, patch, report output, Jira status jika applicable,
 - trace drawer: prompt, raw output, validation details,
 - full report page: audit lengkap.
 

@@ -9,14 +9,16 @@ The system SHALL support Jira Cloud configuration through server-side environmen
 
 #### Scenario: Jira configuration is missing
 - **WHEN** required Jira configuration is missing
-- **THEN** the dashboard shows Jira as not ready and terminal runs record Jira publish failure instead of hiding the problem
+- **THEN** the dashboard shows Jira as not ready
+- **AND** actionable terminal runs record Jira publish failure instead of hiding the problem
 
-### Requirement: Automatic Jira publishing for terminal runs
-The system SHALL attempt to publish every terminal run result to Jira automatically.
+### Requirement: Automatic Jira publishing for actionable results
+The system SHALL attempt to publish actionable terminal run results to Jira automatically.
 
-#### Scenario: Successful run is published
+#### Scenario: Successful run remains report-only
 - **WHEN** a run reaches terminal verdict `NO_HEAL_NEEDED`
-- **THEN** the system automatically attempts to create a Jira Task documenting the successful/audit result
+- **THEN** the system persists the run report as audit history
+- **AND** the system does not automatically create a Jira issue by default
 
 #### Scenario: Heal run is published
 - **WHEN** a run reaches terminal verdict `HEAL`
@@ -38,12 +40,16 @@ The system SHALL attempt to publish every terminal run result to Jira automatica
 The system SHALL map SpecHeal terminal results to Jira issue types.
 
 #### Scenario: Task issue type is used for non-bug actions
-- **WHEN** the terminal result is `NO_HEAL_NEEDED`, `HEAL`, `SPEC OUTDATED`, or operational error
+- **WHEN** the terminal result is `HEAL`, `SPEC OUTDATED`, or operational error
 - **THEN** the Jira issue uses the configured Task issue type
 
 #### Scenario: Bug issue type is used for product regression
 - **WHEN** the terminal result is `PRODUCT BUG`
 - **THEN** the Jira issue uses the configured Bug issue type
+
+#### Scenario: No issue type is used for healthy audit results
+- **WHEN** the terminal result is `NO_HEAL_NEEDED`
+- **THEN** the system stores the audit report without selecting a Jira issue type by default
 
 ### Requirement: Jira payload content
 The system SHALL include enough recovery context in each Jira issue for a developer or QA engineer to act.
