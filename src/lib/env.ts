@@ -30,10 +30,25 @@ export const serverEnvSchema = z.object({
   JIRA_BUG_ISSUE_TYPE: z.string().trim().default("Bug")
 });
 
+export const databaseEnvSchema = serverEnvSchema.pick({
+  DATABASE_URL: true
+});
+
 export type ServerEnv = z.infer<typeof serverEnvSchema>;
+export type DatabaseEnv = z.infer<typeof databaseEnvSchema>;
 
 export function readServerEnv(): ServerEnv {
   return serverEnvSchema.parse(process.env);
+}
+
+export function readDatabaseEnv(): DatabaseEnv {
+  return databaseEnvSchema.parse(process.env);
+}
+
+export function getAppBaseUrl() {
+  return (
+    optionalUrl.parse(process.env.NEXT_PUBLIC_BASE_URL) ?? "http://localhost:3000"
+  );
 }
 
 export function getRuntimeReadiness() {

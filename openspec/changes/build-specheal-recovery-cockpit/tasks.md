@@ -15,10 +15,10 @@
 
 ## 3. Recovery Run Orchestration
 
-- [ ] 3.1 Implement run creation API that accepts a scenario identifier and persists initial run state.
-- [ ] 3.2 Implement background/in-process orchestration that executes the selected scenario without blocking the initial request.
-- [ ] 3.3 Implement run polling API and recent runs API from PostgreSQL.
-- [ ] 3.4 Implement terminal run states for completed verdicts and operational errors.
+- [x] 3.1 Implement run creation API that accepts a scenario identifier and persists initial run state.
+- [x] 3.2 Implement background/in-process orchestration that executes the selected scenario without blocking the initial request.
+- [x] 3.3 Implement run polling API and recent runs API from PostgreSQL.
+- [x] 3.4 Implement terminal run states for completed verdicts and operational errors.
 
 ## 4. Playwright Evidence Pipeline
 

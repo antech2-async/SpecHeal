@@ -114,3 +114,11 @@ export function getShopFlowScenario(
     ) ?? SHOPFLOW_SCENARIOS[0]
   );
 }
+
+export function findShopFlowScenario(
+  value: string | null | undefined
+): ShopFlowScenario | undefined {
+  return SHOPFLOW_SCENARIOS.find(
+    (scenario) => scenario.id === value || scenario.runtimeState === value
+  );
+}
