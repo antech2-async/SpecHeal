@@ -34,8 +34,14 @@ export const databaseEnvSchema = serverEnvSchema.pick({
   DATABASE_URL: true
 });
 
+export const openAiEnvSchema = serverEnvSchema.pick({
+  OPENAI_API_KEY: true,
+  OPENAI_MODEL: true
+});
+
 export type ServerEnv = z.infer<typeof serverEnvSchema>;
 export type DatabaseEnv = z.infer<typeof databaseEnvSchema>;
+export type OpenAIEnv = z.infer<typeof openAiEnvSchema>;
 
 export function readServerEnv(): ServerEnv {
   return serverEnvSchema.parse(process.env);
@@ -43,6 +49,10 @@ export function readServerEnv(): ServerEnv {
 
 export function readDatabaseEnv(): DatabaseEnv {
   return databaseEnvSchema.parse(process.env);
+}
+
+export function readOpenAIEnv(): OpenAIEnv {
+  return openAiEnvSchema.parse(process.env);
 }
 
 export function getAppBaseUrl() {

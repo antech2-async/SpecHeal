@@ -30,12 +30,12 @@
 
 ## 5. OpenAI Verdict Pipeline
 
-- [ ] 5.1 Implement prompt builder using test metadata, failure evidence, candidate context, and OpenSpec clause.
-- [ ] 5.2 Implement live OpenAI call with `gpt-4o-mini` default model and structured response parsing.
-- [ ] 5.3 Support verdicts `HEAL`, `PRODUCT BUG`, and `SPEC OUTDATED` for failed runs.
-- [ ] 5.4 Store system prompt, user prompt, raw response, parsed response, usage metadata, duration, and estimated cost when available.
-- [ ] 5.5 Implement clear AI failure handling without silently substituting deterministic or precomputed verdicts.
-- [ ] 5.6 Block recovery verdict generation when OpenAI is not configured, and surface a retryable operational failure instead.
+- [x] 5.1 Implement prompt builder using test metadata, failure evidence, candidate context, and OpenSpec clause.
+- [x] 5.2 Implement live OpenAI call with `gpt-4o-mini` default model and structured response parsing.
+- [x] 5.3 Support verdicts `HEAL`, `PRODUCT BUG`, and `SPEC OUTDATED` for failed runs.
+- [x] 5.4 Store system prompt, user prompt, raw response, parsed response, usage metadata, duration, and estimated cost when available.
+- [x] 5.5 Implement clear AI failure handling without silently substituting deterministic or precomputed verdicts.
+- [x] 5.6 Block recovery verdict generation when OpenAI is not configured, and surface a retryable operational failure instead.
 
 ## 6. Validation, Rerun, and Output Generation
 

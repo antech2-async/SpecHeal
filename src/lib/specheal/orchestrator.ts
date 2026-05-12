@@ -1,5 +1,6 @@
 import { findShopFlowScenario } from "@/demo/shopflow";
 import { executeCheckoutAttempt } from "./evidence";
+import { generateOpenAIVerdict } from "./openai-verdict";
 import { appendTimelineEvent, normalizeRunReport } from "./run-report";
 import {
   createRunEvidence,
@@ -120,30 +121,23 @@ async function orchestrateRecoveryRun(runId: string) {
       }))
     });
 
-    const reportWithEvidence = {
-      ...reportWithAttempt,
-      evidence: {
-        failedSelector: attempt.evidence.failedSelector,
-        targetUrl: attempt.evidence.targetUrl,
-        screenshotBase64: attempt.evidence.screenshotBase64,
-        rawDomLength: attempt.evidence.rawDomLength,
-        cleanedDomLength: attempt.evidence.cleanedDomLength,
-        visibleText: attempt.evidence.visibleText,
-        candidateCount: attempt.evidence.candidates.length,
-        candidates: attempt.evidence.candidates.map((candidate) => ({
-          ...candidate
-        }))
-      }
-    };
-
-    await updateRecoveryRun(runId, {
-      status: "failed",
-      verdict: "RUN_ERROR",
-      reason:
-        "Playwright failure evidence was captured; OpenAI recovery verdict generation is implemented in the next section.",
-      failedStage: "openai_verdict",
-      errorMessage: "OpenAI verdict pipeline is not implemented yet.",
-      report: appendTimelineEvent(reportWithEvidence, {
+    const reportWithEvidence = appendTimelineEvent(
+      {
+        ...reportWithAttempt,
+        evidence: {
+          failedSelector: attempt.evidence.failedSelector,
+          targetUrl: attempt.evidence.targetUrl,
+          screenshotBase64: attempt.evidence.screenshotBase64,
+          rawDomLength: attempt.evidence.rawDomLength,
+          cleanedDomLength: attempt.evidence.cleanedDomLength,
+          visibleText: attempt.evidence.visibleText,
+          candidateCount: attempt.evidence.candidates.length,
+          candidates: attempt.evidence.candidates.map((candidate) => ({
+            ...candidate
+          }))
+        }
+      },
+      {
         key: "failure-evidence-captured",
         title:
           attempt.evidence.candidates.length > 0
@@ -152,8 +146,100 @@ async function orchestrateRecoveryRun(runId: string) {
         status: "completed",
         detail: `Captured screenshot, cleaned DOM, visible text, and ${attempt.evidence.candidates.length} candidate element(s).`,
         timestamp: new Date().toISOString()
-      })
-    });
+      }
+    );
+
+    try {
+      const aiResult = await generateOpenAIVerdict({
+        run,
+        scenario,
+        evidence: attempt.evidence
+      });
+      const aiReport = {
+        ...reportWithEvidence,
+        ai: {
+          status: "completed" as const,
+          model: aiResult.model,
+          verdict: aiResult.verdict.verdict,
+          reason: aiResult.verdict.reason,
+          confidence: aiResult.verdict.confidence,
+          candidateSelector: aiResult.verdict.candidateSelector,
+          promptTokens: aiResult.usage.promptTokens,
+          completionTokens: aiResult.usage.completionTokens,
+          totalTokens: aiResult.usage.totalTokens,
+          estimatedCostUsd: aiResult.usage.estimatedCostUsd
+        }
+      };
+
+      if (aiResult.verdict.verdict === "HEAL") {
+        await updateRecoveryRun(runId, {
+          status: "failed",
+          verdict: "HEAL",
+          reason:
+            "OpenAI classified this as HEAL; browser validation and rerun proof are required before a safe patch can be presented.",
+          confidence: aiResult.verdict.confidence,
+          candidateSelector: aiResult.verdict.candidateSelector,
+          failedStage: "heal_validation",
+          errorMessage:
+            "HEAL validation and patched rerun proof are implemented in the next section.",
+          report: appendTimelineEvent(aiReport, {
+            key: "ai-verdict-heal",
+            title: "OpenAI verdict: HEAL",
+            status: "completed",
+            detail:
+              "AI found likely locator drift, but SpecHeal has not yet validated or rerun the patch in this slice.",
+            timestamp: new Date().toISOString()
+          })
+        });
+        return;
+      }
+
+      await updateRecoveryRun(runId, {
+        status: "completed",
+        verdict: aiResult.verdict.verdict,
+        reason: aiResult.verdict.reason,
+        confidence: aiResult.verdict.confidence,
+        candidateSelector: aiResult.verdict.candidateSelector,
+        report: appendTimelineEvent(aiReport, {
+          key: `ai-verdict-${aiResult.verdict.verdict.toLowerCase().replace(/\s+/g, "-")}`,
+          title: `OpenAI verdict: ${aiResult.verdict.verdict}`,
+          status: "completed",
+          detail: aiResult.verdict.reason,
+          timestamp: new Date().toISOString()
+        })
+      });
+      return;
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unknown OpenAI verdict failure.";
+
+      await updateRecoveryRun(runId, {
+        status: "failed",
+        verdict: "RUN_ERROR",
+        reason:
+          "SpecHeal captured Playwright failure evidence but could not produce a trusted live OpenAI verdict.",
+        failedStage: "openai_verdict",
+        errorMessage: message,
+        report: appendTimelineEvent(
+          {
+            ...reportWithEvidence,
+            ai: {
+              status: "failed" as const,
+              model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+              errorMessage: message
+            }
+          },
+          {
+            key: "openai-verdict-failed",
+            title: "OpenAI verdict failed",
+            status: "failed",
+            detail: message,
+            timestamp: new Date().toISOString()
+          }
+        )
+      });
+      return;
+    }
   } catch (error) {
     await updateRecoveryRun(runId, {
       status: "failed",

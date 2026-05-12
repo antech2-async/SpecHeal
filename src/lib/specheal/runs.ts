@@ -1,6 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import {
+  aiTraces,
   runEvidence,
   spechealRuns,
   type SpecHealRun
@@ -105,4 +106,9 @@ export async function createRunEvidence(
 ) {
   const [evidence] = await getDb().insert(runEvidence).values(values).returning();
   return evidence;
+}
+
+export async function createAiTrace(values: typeof aiTraces.$inferInsert) {
+  const [trace] = await getDb().insert(aiTraces).values(values).returning();
+  return trace;
 }

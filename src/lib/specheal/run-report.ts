@@ -49,6 +49,19 @@ export type RunReport = {
     candidateCount: number;
     candidates: Record<string, unknown>[];
   };
+  ai?: {
+    status: "skipped" | "completed" | "failed";
+    model: string;
+    verdict?: "HEAL" | "PRODUCT BUG" | "SPEC OUTDATED";
+    reason?: string;
+    confidence?: number;
+    candidateSelector?: string | null;
+    errorMessage?: string;
+    promptTokens?: number;
+    completionTokens?: number;
+    totalTokens?: number;
+    estimatedCostUsd?: number;
+  };
   timeline: RunTimelineEvent[];
 };
 
@@ -131,6 +144,7 @@ export function normalizeRunReport(
     },
     playwright: undefined,
     evidence: undefined,
+    ai: undefined,
     timeline: []
   };
 
@@ -182,6 +196,53 @@ export function normalizeRunReport(
           candidates: Array.isArray(report.evidence.candidates)
             ? report.evidence.candidates.filter(isRecord)
             : []
+        }
+      : undefined,
+    ai: isRecord(report.ai)
+      ? {
+          status:
+            report.ai.status === "completed" ||
+            report.ai.status === "failed" ||
+            report.ai.status === "skipped"
+              ? report.ai.status
+              : "failed",
+          model: String(report.ai.model ?? ""),
+          verdict:
+            report.ai.verdict === "HEAL" ||
+            report.ai.verdict === "PRODUCT BUG" ||
+            report.ai.verdict === "SPEC OUTDATED"
+              ? report.ai.verdict
+              : undefined,
+          reason:
+            typeof report.ai.reason === "string" ? report.ai.reason : undefined,
+          confidence:
+            typeof report.ai.confidence === "number"
+              ? report.ai.confidence
+              : undefined,
+          candidateSelector:
+            typeof report.ai.candidateSelector === "string"
+              ? report.ai.candidateSelector
+              : null,
+          errorMessage:
+            typeof report.ai.errorMessage === "string"
+              ? report.ai.errorMessage
+              : undefined,
+          promptTokens:
+            typeof report.ai.promptTokens === "number"
+              ? report.ai.promptTokens
+              : undefined,
+          completionTokens:
+            typeof report.ai.completionTokens === "number"
+              ? report.ai.completionTokens
+              : undefined,
+          totalTokens:
+            typeof report.ai.totalTokens === "number"
+              ? report.ai.totalTokens
+              : undefined,
+          estimatedCostUsd:
+            typeof report.ai.estimatedCostUsd === "number"
+              ? report.ai.estimatedCostUsd
+              : undefined
         }
       : undefined,
     timeline: Array.isArray(report.timeline)
