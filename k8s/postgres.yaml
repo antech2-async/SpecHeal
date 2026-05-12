@@ -2,7 +2,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: specheal-postgres-data
-  namespace: specheal
+  namespace: merge-kalau-berani
 spec:
   accessModes:
     - ReadWriteOnce
@@ -14,7 +14,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: specheal-postgres
-  namespace: specheal
+  namespace: merge-kalau-berani
 spec:
   replicas: 1
   selector:
@@ -66,7 +66,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: specheal-postgres
-  namespace: specheal
+  namespace: merge-kalau-berani
 spec:
   selector:
     app: specheal-postgres

@@ -1,13 +1,8 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: specheal
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: specheal-app
-  namespace: specheal
+  namespace: merge-kalau-berani
 spec:
   replicas: 1
   selector:
@@ -51,7 +46,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: specheal-app
-  namespace: specheal
+  namespace: merge-kalau-berani
 spec:
   selector:
     app: specheal-app
@@ -65,10 +60,10 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: specheal-app
-  namespace: specheal
+  namespace: merge-kalau-berani
 spec:
   rules:
-    - host: specheal.example.com
+    - host: merge-kalau-berani.hackathon.sev-2.com
       http:
         paths:
           - path: /

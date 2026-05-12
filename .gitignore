@@ -24,6 +24,8 @@ pnpm-debug.log*
 .env.test.local
 .env.production.local
 .env*.local
+k8s/*.local.yaml
+k8s/*.local.env
 
 # ----- Vercel -----
 .vercel
