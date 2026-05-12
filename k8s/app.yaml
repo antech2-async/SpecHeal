@@ -15,8 +15,8 @@ spec:
     spec:
       containers:
         - name: specheal
-          image: ghcr.io/your-org/specheal:latest
-          imagePullPolicy: IfNotPresent
+          image: ghcr.io/your-github-owner/your-repo:production
+          imagePullPolicy: Always
           ports:
             - containerPort: 3000
           envFrom:

@@ -4,12 +4,25 @@ SpecHeal deploys as one application container plus PostgreSQL. For the hackathon
 
 ## Build Image
 
+GitHub Actions builds and pushes the production image to GitHub Container Registry on every push to `main` after CI passes. No extra GitHub secret is needed for this image push because the workflow uses GitHub's built-in `GITHUB_TOKEN`.
+
+Published tags:
+
+```text
+ghcr.io/<github-owner>/<repo>:production
+ghcr.io/<github-owner>/<repo>:sha-<short-sha>
+```
+
+Manual fallback:
+
 ```bash
-docker build -t ghcr.io/your-org/specheal:latest .
-docker push ghcr.io/your-org/specheal:latest
+docker build -t ghcr.io/<github-owner>/<repo>:production .
+docker push ghcr.io/<github-owner>/<repo>:production
 ```
 
 The image uses the Playwright base image so Chromium and browser dependencies are available for runtime evidence capture and rerun proof.
+
+If the GHCR package is private, Kubernetes needs an `imagePullSecret`. For the fastest hackathon path, either make the package public or create a pull secret in the `merge-kalau-berani` namespace.
 
 ## Configure Secrets
 
@@ -23,10 +36,17 @@ The provided hackathon PostgreSQL service is external at `103.185.52.138:1185` a
 
 ## Deploy App
 
-Update the image in `k8s/app.yaml`, then apply:
+Update the image in `k8s/app.yaml` to the GHCR image from the workflow, then apply:
 
 ```bash
 kubectl --kubeconfig="merge-kalau-berani 2/merge-kalau-berani/kubeconfig.yaml" apply -f k8s/app.yaml
+kubectl --kubeconfig="merge-kalau-berani 2/merge-kalau-berani/kubeconfig.yaml" rollout status deployment/specheal-app -n merge-kalau-berani
+```
+
+Or update the running deployment directly after the GHCR image is available:
+
+```bash
+kubectl --kubeconfig="merge-kalau-berani 2/merge-kalau-berani/kubeconfig.yaml" set image deployment/specheal-app specheal=ghcr.io/<github-owner>/<repo>:production -n merge-kalau-berani
 kubectl --kubeconfig="merge-kalau-berani 2/merge-kalau-berani/kubeconfig.yaml" rollout status deployment/specheal-app -n merge-kalau-berani
 ```
 
