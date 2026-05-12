@@ -6,17 +6,30 @@ The system SHALL support Jira Cloud configuration through server-side environmen
 #### Scenario: Jira configuration is available
 - **WHEN** the application starts with Jira environment variables configured
 - **THEN** the system can identify Jira site URL, email, API token, project key, Task issue type, and Bug issue type
+- **AND** the required variable names are `JIRA_SITE_URL`, `JIRA_USER_EMAIL`, `JIRA_API_TOKEN`, `JIRA_PROJECT_KEY`, `JIRA_TASK_ISSUE_TYPE`, and `JIRA_BUG_ISSUE_TYPE`
+
+#### Scenario: Team-managed Jira project is supported
+- **WHEN** the configured Jira project is a team-managed Jira Cloud project
+- **THEN** the system creates issues through Jira Cloud REST API using the configured project key and issue type names
+- **AND** the MVP target project key is `SH`
 
 #### Scenario: Jira configuration is missing
 - **WHEN** required Jira configuration is missing
-- **THEN** the dashboard shows Jira as not ready and terminal runs record Jira publish failure instead of hiding the problem
+- **THEN** the dashboard shows Jira as not ready
+- **AND** actionable terminal runs record Jira publish failure instead of hiding the problem
 
-### Requirement: Automatic Jira publishing for terminal runs
-The system SHALL attempt to publish every terminal run result to Jira automatically.
+#### Scenario: Jira secrets are not persisted
+- **WHEN** Jira publishing runs
+- **THEN** API token and user email are read from server-side environment only
+- **AND** API token is not stored in PostgreSQL, report JSON, dashboard output, or Jira issue body
 
-#### Scenario: Successful run is published
+### Requirement: Automatic Jira publishing for actionable results
+The system SHALL attempt to publish actionable terminal run results to Jira automatically.
+
+#### Scenario: Successful run remains report-only
 - **WHEN** a run reaches terminal verdict `NO_HEAL_NEEDED`
-- **THEN** the system automatically attempts to create a Jira Task documenting the successful/audit result
+- **THEN** the system persists the run report as audit history
+- **AND** the system does not automatically create a Jira issue by default
 
 #### Scenario: Heal run is published
 - **WHEN** a run reaches terminal verdict `HEAL`
@@ -38,12 +51,16 @@ The system SHALL attempt to publish every terminal run result to Jira automatica
 The system SHALL map SpecHeal terminal results to Jira issue types.
 
 #### Scenario: Task issue type is used for non-bug actions
-- **WHEN** the terminal result is `NO_HEAL_NEEDED`, `HEAL`, `SPEC OUTDATED`, or operational error
+- **WHEN** the terminal result is `HEAL`, `SPEC OUTDATED`, or operational error
 - **THEN** the Jira issue uses the configured Task issue type
 
 #### Scenario: Bug issue type is used for product regression
 - **WHEN** the terminal result is `PRODUCT BUG`
 - **THEN** the Jira issue uses the configured Bug issue type
+
+#### Scenario: No issue type is used for healthy audit results
+- **WHEN** the terminal result is `NO_HEAL_NEEDED`
+- **THEN** the system stores the audit report without selecting a Jira issue type by default
 
 ### Requirement: Jira payload content
 The system SHALL include enough recovery context in each Jira issue for a developer or QA engineer to act.
@@ -51,10 +68,11 @@ The system SHALL include enough recovery context in each Jira issue for a develo
 #### Scenario: Jira issue contains common run fields
 - **WHEN** the system creates any Jira issue
 - **THEN** the issue includes SpecHeal run ID, scenario name, terminal result, summary, reason, OpenSpec reference, and dashboard report reference when available
+- **AND** the issue summary is prefixed with `[SpecHeal]`
 
 #### Scenario: Jira issue contains HEAL proof
 - **WHEN** the system creates a Jira issue for `HEAL`
-- **THEN** the issue includes patch preview, candidate selector, validation result, rerun result, and AI confidence
+- **THEN** the issue includes applied patch preview, candidate selector, validation result, rerun result, and AI confidence
 
 #### Scenario: Jira issue contains product bug evidence
 - **WHEN** the system creates a Jira issue for `PRODUCT BUG`

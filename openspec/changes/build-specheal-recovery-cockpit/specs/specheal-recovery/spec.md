@@ -44,7 +44,9 @@ The system SHALL classify successful baseline execution as `NO_HEAL_NEEDED`.
 
 #### Scenario: Successful run still reaches terminal workflow
 - **WHEN** a run is classified as `NO_HEAL_NEEDED`
-- **THEN** the run becomes terminal and remains eligible for Jira publishing
+- **THEN** the run becomes terminal
+- **AND** the run is persisted as an audit report
+- **AND** the system does not create a Jira issue for the healthy result by default
 
 ### Requirement: Failure evidence capture
 The system SHALL capture structured evidence when the Playwright attempt fails.
@@ -52,6 +54,10 @@ The system SHALL capture structured evidence when the Playwright attempt fails.
 #### Scenario: Failed run captures evidence
 - **WHEN** the first Playwright attempt fails
 - **THEN** the system captures the Playwright error, failed selector, target URL, screenshot, DOM evidence, visible page evidence, and candidate elements
+
+#### Scenario: Screenshot evidence is base64
+- **WHEN** screenshot evidence is captured
+- **THEN** the screenshot is encoded as a base64 PNG string for MVP storage
 
 #### Scenario: Evidence is stored with run report
 - **WHEN** failure evidence is captured
@@ -103,15 +109,17 @@ The system SHALL use live OpenAI calls to produce recovery verdicts for failed r
 
 #### Scenario: Failed run invokes OpenAI
 - **WHEN** a Playwright run fails and evidence is available
-- **THEN** the system calls OpenAI with structured failure evidence, candidate context, and OpenSpec context
+- **THEN** the system calls OpenAI model `gpt-4o-mini` with structured failure evidence, candidate context, and OpenSpec context
+- **AND** the model can be overridden only through server-side configuration
 
 #### Scenario: OpenAI returns structured verdict
 - **WHEN** OpenAI returns a response
-- **THEN** the response is parsed into verdict, reason, confidence, candidate selector if any, and recommended output
+- **THEN** the response is parsed into verdict, reason, confidence, candidate selector if any, patch object if any, and Jira-ready report object if any
 
 #### Scenario: Demo does not silently fallback
 - **WHEN** OpenAI is unavailable, returns invalid output, or cannot be parsed
-- **THEN** the run records a clear AI failure state instead of silently substituting a deterministic verdict
+- **THEN** the run records a clear AI failure state instead of silently substituting a deterministic or precomputed verdict
+- **AND** the report shows the recovery analysis did not produce a trusted AI verdict
 
 ### Requirement: Verdict set
 The system SHALL support `HEAL`, `PRODUCT BUG`, `SPEC OUTDATED`, and `NO_HEAL_NEEDED` as recovery verdicts.
@@ -140,26 +148,36 @@ The system SHALL validate a `HEAL` candidate selector in the browser before trea
 - **THEN** the system does not mark the patch as safe
 
 ### Requirement: Rerun proof
-The system SHALL rerun the checkout test with a validated candidate selector before presenting a safe patch.
+The system SHALL rerun the checkout test through the patched Playwright test file before presenting a safe patch.
 
 #### Scenario: Rerun proves recovered behavior
-- **WHEN** candidate validation passes
-- **THEN** the system reruns the checkout test with the candidate selector and requires `Payment Success`
+- **WHEN** candidate validation passes and the HEAL patch has been applied to the target test file
+- **THEN** the system reruns the checkout test from the patched file and requires `Payment Success`
 
 #### Scenario: Rerun blocks unsafe patch
 - **WHEN** rerun does not reach `Payment Success`
 - **THEN** the system does not present the patch as a safe heal
 
-### Requirement: Patch preview
-The system SHALL generate a reviewable patch preview for safe `HEAL` results.
+### Requirement: Test-file patch application and preview
+The system SHALL apply and display a reviewable Playwright test locator patch for safe `HEAL` results.
+
+#### Scenario: Safe heal patch is applied before proof
+- **WHEN** browser validation passes for a `HEAL` candidate selector
+- **THEN** the system applies the locator patch to the target Playwright test file in the runtime workspace
+- **AND** the applied patch only changes the test locator needed for the failed step
 
 #### Scenario: Safe heal patch is shown
-- **WHEN** validation and rerun proof pass for a `HEAL` verdict
-- **THEN** the report displays target file, old line, new line, and explanation
+- **WHEN** validation, patch application, and rerun proof pass for a `HEAL` verdict
+- **THEN** the report displays target file, old line, new line, applied diff, and explanation
 
-#### Scenario: Patch remains review-only
-- **WHEN** a patch preview is generated
-- **THEN** the system does not auto-commit, auto-merge, or directly modify repository code as part of the MVP
+#### Scenario: Patch is not committed automatically
+- **WHEN** an applied patch preview is generated
+- **THEN** the system does not auto-commit, auto-merge, or create a GitHub pull request as part of the MVP
+
+#### Scenario: Patch targets the test, not product code
+- **WHEN** the system presents a safe `HEAL` patch
+- **THEN** the patch is presented as an applied Playwright test locator update that remains reviewable
+- **AND** the system does not claim to repair product implementation code
 
 ### Requirement: Product bug report output
 The system SHALL generate a structured product bug report when recovery is not safe because required behavior is missing.
@@ -172,16 +190,22 @@ The system SHALL generate a structured product bug report when recovery is not s
 - **WHEN** the final verdict is `PRODUCT BUG`
 - **THEN** the report does not present any selector patch as the recommended action
 
+#### Scenario: Product bug remains an escalation
+- **WHEN** the final verdict is `PRODUCT BUG`
+- **THEN** the report recommends fixing the product behavior or updating OpenSpec if the behavior intentionally changed
+- **AND** the system does not claim to automatically fix the product bug
+
 ### Requirement: Run timeline report
 The system SHALL display every run as a timeline report.
 
 #### Scenario: Timeline shows recovery steps
 - **WHEN** a run reaches a terminal state
-- **THEN** the dashboard shows Playwright result, evidence, OpenSpec clause, OpenAI verdict, proof or bug decision, and Jira publish result
+- **THEN** the dashboard shows Playwright result, evidence, OpenSpec clause, OpenAI verdict, proof or bug decision, and Jira publish result when applicable
 
 #### Scenario: Timeline handles healthy runs
 - **WHEN** a run is `NO_HEAL_NEEDED`
 - **THEN** the timeline marks AI recovery, candidate validation, and rerun proof as skipped or not needed
+- **AND** the timeline marks Jira publishing as not required by default
 
 ### Requirement: AI trace transparency
 The system SHALL expose the trace needed to audit an AI-assisted decision.
@@ -189,6 +213,11 @@ The system SHALL expose the trace needed to audit an AI-assisted decision.
 #### Scenario: Trace shows prompt and response
 - **WHEN** a run uses OpenAI
 - **THEN** the report shows system prompt, user prompt, raw response, and parsed response
+
+#### Scenario: Trace distinguishes unavailable AI
+- **WHEN** OpenAI is not configured or fails before returning a trusted response
+- **THEN** the report shows the failed AI stage and error context
+- **AND** the report does not present a hardcoded replacement verdict as an AI decision
 
 #### Scenario: Trace labels confidence correctly
 - **WHEN** the report displays confidence
@@ -206,8 +235,12 @@ The system SHALL persist run history and audit artifacts in PostgreSQL.
 - **THEN** scenario, status, verdict, reason, confidence, timestamps, and terminal result are stored
 
 #### Scenario: Run artifacts are stored
-- **WHEN** evidence, AI trace, patch preview, validation result, rerun result, or Jira publish result is produced
+- **WHEN** evidence, AI trace, applied patch preview, validation result, rerun result, or Jira publish result is produced
 - **THEN** the artifact is stored with the run
+
+#### Scenario: Screenshot artifact is stored in PostgreSQL
+- **WHEN** a screenshot is captured for a run
+- **THEN** the base64 screenshot is stored as part of the PostgreSQL-backed run artifact
 
 #### Scenario: Recent runs are visible
 - **WHEN** the dashboard loads
@@ -218,7 +251,7 @@ The system SHALL provide a full report view for each persisted run.
 
 #### Scenario: User opens full report
 - **WHEN** a user opens a run report by ID
-- **THEN** the system displays run overview, timeline, evidence, OpenSpec clause, AI trace, proof details, and Jira publish result
+- **THEN** the system displays run overview, timeline, evidence, OpenSpec clause, AI trace, proof details, and Jira publish result when applicable
 
 #### Scenario: Incomplete run report is handled
 - **WHEN** a run exists but is not complete
@@ -233,10 +266,15 @@ The system SHALL record operational errors as terminal run results when a recove
 
 #### Scenario: Runtime error remains publishable
 - **WHEN** a run ends in an operational error
-- **THEN** the run remains eligible for Jira publishing as an operational follow-up
+- **THEN** the run remains eligible for Jira publishing as an operational follow-up when Jira is configured
 
 ### Requirement: Kubernetes deployment readiness
 The system SHALL be deployable as runtime artifacts on Kubernetes.
+
+#### Scenario: MVP uses one app container
+- **WHEN** the MVP is deployed to Kubernetes
+- **THEN** dashboard, API/backend routes, in-process Playwright runner, OpenAI verdict generation, and Jira publishing run from one app container
+- **AND** PostgreSQL is deployed or connected as a separate service
 
 #### Scenario: Runtime configuration uses secrets
 - **WHEN** the system is deployed to Kubernetes

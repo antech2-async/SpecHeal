@@ -1,14 +1,16 @@
 ## Context
 
-SpecHeal adalah MVP hackathon untuk Engineering Productivity x AI. Produk harus berjalan end-to-end: judge membuka dashboard, menjalankan scenario ShopFlow Checkout, melihat live OpenAI verdict, melihat OpenSpec sebagai guardrail, melihat proof dari browser/rerun, dan melihat Jira issue yang dibuat otomatis.
+SpecHeal adalah MVP hackathon untuk Engineering Productivity x AI. Produk harus berjalan end-to-end: judge membuka dashboard, menjalankan scenario ShopFlow Checkout, melihat live OpenAI verdict, melihat OpenSpec sebagai guardrail, melihat proof dari browser/rerun, melihat persisted audit report, dan melihat Jira issue untuk hasil yang membutuhkan tindak lanjut.
 
 Constraints utama:
 
 - Live OpenAI adalah core MVP, bukan optional.
-- Semua terminal run harus mencoba publish ke Jira.
+- Model OpenAI MVP adalah `gpt-4o-mini`, dengan konfigurasi server-side dan trace yang bisa diaudit.
+- Jira wajib untuk actionable terminal results: `HEAL`, `PRODUCT BUG`, `SPEC OUTDATED`, dan operational run error. `NO_HEAL_NEEDED` menjadi persisted audit report tanpa Jira issue secara default.
+- Jira target MVP memakai Jira Cloud REST API pada project key `SH`, dengan credential hanya melalui environment/Kubernetes Secret.
 - OpenSpec menjadi source of truth behavior.
-- PostgreSQL menyimpan run dan artifact audit.
-- Runtime product harus bisa dideploy ke Kubernetes di VPS hackathon.
+- PostgreSQL menyimpan run dan artifact audit, termasuk screenshot evidence sebagai base64 untuk MVP.
+- Runtime product harus bisa dideploy ke Kubernetes di VPS hackathon sebagai satu app container dan PostgreSQL service terpisah.
 - Demo utama harus tetap sempit: Healthy Flow, Locator Drift, dan Product Bug.
 
 ## Goals / Non-Goals
@@ -18,15 +20,15 @@ Constraints utama:
 - Menyediakan vertical slice yang bisa dinilai end-to-end dari dashboard sampai Jira.
 - Memisahkan product behavior ShopFlow dari recovery behavior SpecHeal.
 - Menggunakan OpenAI structured verdict untuk failed test recovery.
-- Membuktikan `HEAL` melalui candidate validation dan rerun proof.
-- Mempublikasikan semua terminal run ke Jira secara otomatis.
+- Membuktikan `HEAL` melalui candidate validation, controlled test-file patch application, dan rerun proof.
+- Mempublikasikan actionable terminal results ke Jira secara otomatis.
 - Menyimpan report lengkap di PostgreSQL agar run dapat diaudit ulang.
 - Menyediakan deployment path untuk Kubernetes.
 
 **Non-Goals:**
 
 - Menguji website arbitrary.
-- Auto-commit, auto-merge, atau membuat GitHub PR.
+- Auto-commit, auto-merge, memperbaiki product code secara otomatis, atau membuat GitHub PR.
 - Authentication atau multi-tenant workspace.
 - Live screenshot attachment ke Jira.
 - Scenario demo utama untuk `SPEC OUTDATED`.
@@ -53,12 +55,12 @@ Rationale:
 
 - ShopFlow spec harus behavior-first dan selector-agnostic.
 - SpecHeal recovery spec mengatur pipeline recovery, AI, validation, rerun, persistence, dan deployment readiness.
-- Jira integration spec mengatur auto-publish semua terminal run, mapping issue, failure handling, dan retry.
+- Jira integration spec mengatur auto-publish actionable terminal results, mapping issue, failure handling, report-only healthy runs, dan retry.
 
 Alternatives considered:
 
 - Satu spec besar: lebih cepat ditulis, tetapi sulit dipakai sebagai guardrail yang rapi.
-- Spec Jira digabung ke recovery: bisa dilakukan, tetapi requirement publish semua run cukup penting untuk dipisahkan.
+- Spec Jira digabung ke recovery: bisa dilakukan, tetapi live workflow handoff cukup penting untuk dipisahkan.
 
 ### Decision 3: Live OpenAI wajib untuk failed recovery analysis
 
@@ -75,37 +77,43 @@ Alternatives considered:
 Design consequence:
 
 - Jika OpenAI gagal, run masuk terminal failure state dan tetap harus mencoba publish Jira issue sebagai operational failure jika memungkinkan.
-- Sistem tidak boleh diam-diam mengganti live OpenAI dengan seeded verdict saat demo.
+- Sistem tidak boleh diam-diam mengganti live OpenAI dengan deterministic atau precomputed verdict saat demo.
+- OpenAI call memakai model `gpt-4o-mini` secara default, kecuali environment override eksplisit disediakan.
+- Prompt dan response wajib disimpan sebagai trace audit, tetapi API key tidak pernah disimpan ke database atau report.
 
-### Decision 4: HEAL harus melewati validation dan rerun proof
+### Decision 4: HEAL harus melewati validation, test-file patch, dan rerun proof
 
 Rationale:
 
 - OpenAI hanya memberi candidate dan reason.
 - Browser validation memastikan candidate ada, unik, visible, enabled, dan click-able.
-- Rerun memastikan flow benar-benar mencapai `Payment Success`.
+- Controlled patch application ke Playwright test file membuktikan locator baru benar-benar bisa menjalankan test, bukan hanya selector injection sementara.
+- Rerun dari test yang sudah dipatch memastikan flow benar-benar mencapai `Payment Success`.
 
 Alternatives considered:
 
 - Tampilkan patch langsung dari AI: ditolak karena berisiko false green.
+- Rerun langsung dengan selector override tanpa mengubah test file: berguna sebagai smoke check, tetapi kurang kuat untuk membuktikan bahwa patch yang direview memang executable.
 
 Design consequence:
 
-- Patch preview hanya boleh disebut safe setelah validation dan rerun passed.
+- Patch preview hanya boleh disebut safe setelah validation, patch application, dan rerun passed.
+- Sistem boleh memodifikasi test file target secara controlled di runtime/workspace MVP, tetapi tidak boleh auto-commit, auto-merge, atau mengubah product implementation code.
 - Jika validation/rerun gagal karena behavior tidak terpenuhi, final output tidak boleh menjadi safe heal.
 
-### Decision 5: Jira auto-publish berjalan setelah setiap terminal run
+### Decision 5: Jira auto-publish berjalan untuk actionable terminal results
 
 Rationale:
 
 - MVP harus membuktikan workflow output, bukan hanya report preview.
-- Semua status run harus masuk workflow Jira: pass/audit, heal task, product bug, spec outdated task, dan operational run error.
+- Jira dipakai untuk tindak lanjut manusia: review patch, fix product regression, update spec/test mapping, atau investigasi operational error.
+- Healthy/no-heal run tetap penting sebagai audit trail, tetapi tidak membutuhkan Jira issue secara default.
 
 Issue mapping:
 
 | Terminal Result | Jira Issue Type | Purpose |
 | --- | --- | --- |
-| `NO_HEAL_NEEDED` | Task | Audit bahwa scenario berjalan sehat |
+| `NO_HEAL_NEEDED` | Tidak dibuat secara default | Persisted audit report bahwa scenario berjalan sehat |
 | `HEAL` | Task | Review dan apply patch locator |
 | `PRODUCT BUG` | Bug | Perbaiki product regression |
 | `SPEC OUTDATED` | Task | Update test/spec mapping |
@@ -113,7 +121,7 @@ Issue mapping:
 
 Design consequence:
 
-- Jika Jira publish gagal, run tetap disimpan dengan `jira_publish_failed`.
+- Jika Jira publish gagal untuk actionable result, run tetap disimpan dengan `jira_publish_failed`.
 - Sistem menyediakan retry publish karena issue tidak mungkin dibuat ketika Jira/API/credential sedang gagal.
 
 ### Decision 6: Gunakan PostgreSQL sebagai report store
@@ -128,13 +136,14 @@ Data groups:
 
 - run metadata,
 - failure evidence,
+- screenshot base64,
 - AI trace,
 - validation result,
 - rerun result,
-- patch preview,
+- applied patch preview,
 - Jira publish result.
 
-### Decision 7: MVP deployment memakai Kubernetes dengan app container yang memuat dashboard, API, dan worker runtime
+### Decision 7: MVP deployment memakai Kubernetes dengan app container yang memuat dashboard, API, dan in-process runner
 
 Rationale:
 
@@ -148,9 +157,9 @@ Alternatives considered:
 
 Design consequence:
 
-- Container image harus membawa browser dependencies.
+- Container image harus membawa dashboard, API routes/backend, in-process Playwright runner, OpenAI client, Jira publisher, dan browser dependencies.
 - Kubernetes Secret harus menyimpan OpenAI, Jira, database, dan runtime config.
-- PostgreSQL harus reachable dari app container.
+- PostgreSQL berjalan sebagai service/deployment terpisah atau external database yang reachable dari app container.
 
 ## Risks / Trade-offs
 
@@ -172,9 +181,9 @@ Implementasi disarankan bertahap:
 2. Buat ShopFlow Checkout dan scenario states.
 3. Buat Playwright runtime dan evidence capture.
 4. Buat OpenSpec loader dan prompt builder.
-5. Integrasikan live OpenAI structured verdict.
-6. Tambahkan validation dan rerun proof.
-7. Tambahkan Jira auto-publish semua terminal run.
+5. Integrasikan live OpenAI structured verdict dengan model `gpt-4o-mini`.
+6. Tambahkan validation, controlled test-file patch application, dan rerun proof.
+7. Tambahkan Jira auto-publish untuk actionable terminal results dan report-only behavior untuk healthy runs.
 8. Bangun dashboard timeline, trace, dan full report.
 9. Siapkan Docker/Kubernetes deployment.
 
@@ -185,8 +194,5 @@ Rollback:
 
 ## Open Questions
 
-- Jira project key final apa?
-- Nama issue type final untuk Task dan Bug apa?
-- Model OpenAI final yang dipakai demo apa?
 - Domain/Ingress dari VPS Kubernetes seperti apa?
-- Screenshot evidence MVP disimpan sebagai base64 di PostgreSQL atau sebagai file reference?
+- Jira permission dan issue type `Task`/`Bug` perlu divalidasi dengan API setelah credential aman dan di-rotate jika pernah terpapar.
