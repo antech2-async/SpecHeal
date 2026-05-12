@@ -563,9 +563,6 @@ Acceptance Criteria:
 - Dashboard menampilkan model, prompt, raw response, parsed response, token usage.
 - Jika OpenAI gagal, run menampilkan failure state yang jujur dengan opsi retry.
 
-<<<<<<< HEAD
-### FR-009 Candidate Browser Validation
-=======
 - OpenAI API dipanggil ketika failed run butuh recovery analysis.
 - Model default adalah `gpt-4o-mini` dan hanya dapat dioverride via server-side environment variable.
 - Response harus structured dan parseable.
@@ -573,7 +570,6 @@ Acceptance Criteria:
 - Response menyertakan reason, confidence, candidate selector, patch atau bug report.
 - Dashboard menampilkan model, prompt, raw response, parsed response, token usage, dan estimated cost jika tersedia.
 - Jika OpenAI gagal, run menampilkan failure state yang jujur dan dapat di-retry.
->>>>>>> main
 
 Jika verdict `HEAL`, SpecHeal harus memvalidasi candidate selector langsung di browser.
 
