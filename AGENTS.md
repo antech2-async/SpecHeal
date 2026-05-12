@@ -112,6 +112,11 @@ OpenSpec artifacts now exist in this repo under:
 - `openspec/config.yaml`
 - `openspec/changes/build-specheal-recovery-cockpit/`
 
+Planning artifacts also exist under:
+
+- `docs/PRD.md`
+- `docs/architecture-c4.md`
+
 Treat the active OpenSpec change as the implementation contract until it is revised or archived.
 
 OpenSpec is organized into three capabilities:
