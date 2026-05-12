@@ -19,7 +19,7 @@ Copy `k8s/secret.template.yaml` to `k8s/secret.local.yaml`, replace the placehol
 kubectl --kubeconfig="merge-kalau-berani 2/merge-kalau-berani/kubeconfig.yaml" apply -f k8s/secret.local.yaml
 ```
 
-The provided hackathon PostgreSQL service is external at `103.185.52.138:1185`, so `k8s/postgres.yaml` is optional fallback infrastructure and should be skipped for the team-provided database.
+The provided hackathon PostgreSQL service is external at `103.185.52.138:1185` and requires SSL with a self-signed certificate, so keep `sslmode=no-verify` in `DATABASE_URL` unless the organizers provide a CA certificate. `k8s/postgres.yaml` is optional fallback infrastructure and should be skipped for the team-provided database.
 
 ## Deploy App
 

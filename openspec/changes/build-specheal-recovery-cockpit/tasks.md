@@ -84,7 +84,7 @@
 - [x] 10.3 Add tests or scripted checks for Jira payload mapping.
 - [x] 10.4 Add tests or scripted checks proving no deterministic fallback is used when OpenAI is unavailable.
 - [x] 10.5 Add tests or scripted checks proving `NO_HEAL_NEEDED` creates a report without Jira publish.
-- [ ] 10.6 Run Locator Drift scenario end-to-end with live OpenAI, applied test patch, rerun proof, and Jira Task creation.
-- [ ] 10.7 Run Product Bug scenario end-to-end with live OpenAI and Jira Bug creation.
-- [ ] 10.8 Verify recent runs and full report persist after reload.
+- [x] 10.6 Run Locator Drift scenario end-to-end with live OpenAI, applied test patch, rerun proof, and Jira Task creation.
+- [x] 10.7 Run Product Bug scenario end-to-end with live OpenAI and Jira Bug creation.
+- [x] 10.8 Verify recent runs and full report persist after reload.
 - [ ] 10.9 Prepare a 5-minute demo script using the deployed Kubernetes URL.

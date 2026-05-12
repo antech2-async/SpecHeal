@@ -222,9 +222,7 @@ async function extractCandidateElements(page: Page): Promise<CandidateFromPage[]
           "input",
           "textarea",
           "select",
-          "[role='button']",
-          "[data-testid]",
-          "[aria-label]"
+          "[role='button']"
         ].join(",")
       )
     );
