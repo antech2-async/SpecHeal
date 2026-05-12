@@ -79,11 +79,11 @@
 
 ## 10. Verification and Demo Readiness
 
-- [ ] 10.1 Add tests for OpenSpec clause alignment and selector-agnostic ShopFlow requirements.
-- [ ] 10.2 Add tests for DOM cleaning, candidate extraction, and zero-candidate behavior.
-- [ ] 10.3 Add tests or scripted checks for Jira payload mapping.
-- [ ] 10.4 Add tests or scripted checks proving no deterministic fallback is used when OpenAI is unavailable.
-- [ ] 10.5 Add tests or scripted checks proving `NO_HEAL_NEEDED` creates a report without Jira publish.
+- [x] 10.1 Add tests for OpenSpec clause alignment and selector-agnostic ShopFlow requirements.
+- [x] 10.2 Add tests for DOM cleaning, candidate extraction, and zero-candidate behavior.
+- [x] 10.3 Add tests or scripted checks for Jira payload mapping.
+- [x] 10.4 Add tests or scripted checks proving no deterministic fallback is used when OpenAI is unavailable.
+- [x] 10.5 Add tests or scripted checks proving `NO_HEAL_NEEDED` creates a report without Jira publish.
 - [ ] 10.6 Run Locator Drift scenario end-to-end with live OpenAI, applied test patch, rerun proof, and Jira Task creation.
 - [ ] 10.7 Run Product Bug scenario end-to-end with live OpenAI and Jira Bug creation.
 - [ ] 10.8 Verify recent runs and full report persist after reload.
