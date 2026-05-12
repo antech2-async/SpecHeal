@@ -14,7 +14,7 @@ Ketika test gagal, SpecHeal menjawab satu pertanyaan penting:
 
 > Apakah test ini aman diperbaiki, atau produk benar-benar rusak?
 
-SpecHeal menjalankan test di browser, mengambil evidence kegagalan, membaca OpenSpec sebagai kontrak perilaku, meminta OpenAI menghasilkan verdict terstruktur, memvalidasi candidate selector di browser, membuktikan hasil dengan rerun, menyimpan report ke PostgreSQL, lalu mempublikasikan hasil yang membutuhkan action ke Jira.
+SpecHeal menjalankan test di browser, mengambil evidence kegagalan, membaca OpenSpec sebagai kontrak perilaku, meminta OpenAI menghasilkan verdict terstruktur, memvalidasi candidate selector di browser, menerapkan patch locator ke test file saat aman, membuktikan hasil dengan rerun, menyimpan report ke PostgreSQL, lalu mempublikasikan hasil yang membutuhkan action ke Jira.
 
 Core thesis:
 
@@ -103,6 +103,7 @@ Playwright failure
 -> OpenSpec requirement
 -> OpenAI verdict
 -> browser validation
+-> controlled test-file patch
 -> rerun proof
 -> Jira action
 ```
@@ -114,7 +115,7 @@ Playwright failure
 1. Menyediakan dashboard untuk menjalankan scenario recovery UI test.
 2. Menggunakan live OpenAI untuk menganalisis failure evidence dan OpenSpec.
 3. Membedakan `HEAL`, `PRODUCT BUG`, `SPEC OUTDATED`, dan `NO_HEAL_NEEDED`.
-4. Membuktikan `HEAL` melalui browser validation dan rerun proof.
+4. Membuktikan `HEAL` melalui browser validation, controlled test-file patch, dan rerun proof.
 5. Membuat Jira issue secara live untuk hasil recovery yang membutuhkan action.
 6. Menyimpan run history dan audit trail ke PostgreSQL.
 7. Menyediakan full report yang bisa diaudit oleh judge, mentor, dan developer.
@@ -237,8 +238,9 @@ MVP mencakup:
 - OpenSpec requirement loading.
 - Live OpenAI verdict.
 - Browser candidate validation.
-- Rerun proof.
-- Patch preview untuk `HEAL`.
+- Controlled test-file patch application untuk `HEAL`.
+- Rerun proof dari test file yang sudah dipatch.
+- Applied patch preview untuk `HEAL`.
 - Jira issue publishing untuk `HEAL` dan `PRODUCT BUG`.
 - PostgreSQL persistence.
 - Recent runs dan full report.
@@ -291,7 +293,7 @@ Makna:
 
 Output:
 
-- patch preview,
+- applied patch preview,
 - validation proof,
 - rerun proof,
 - Jira Task untuk review/apply patch.
@@ -341,11 +343,12 @@ Catatan:
 8. SpecHeal memanggil OpenAI untuk verdict.
 9. OpenAI mengembalikan verdict `HEAL` dengan candidate selector.
 10. SpecHeal memvalidasi candidate selector di browser.
-11. SpecHeal melakukan rerun dengan selector baru.
-12. Rerun mencapai `Payment Success`.
-13. Dashboard menampilkan patch preview.
-14. SpecHeal membuat Jira Task.
-15. Dashboard menampilkan Jira issue key dan link.
+11. SpecHeal menerapkan patch locator ke target Playwright test file.
+12. SpecHeal melakukan rerun dari test file yang sudah dipatch.
+13. Rerun mencapai `Payment Success`.
+14. Dashboard menampilkan applied patch preview.
+15. SpecHeal membuat Jira Task.
+16. Dashboard menampilkan Jira issue key dan link.
 
 ### 11.2 Journey: Judge menjalankan Product Bug
 
@@ -471,7 +474,7 @@ SpecHeal harus memakai live OpenAI untuk menghasilkan verdict.
 Acceptance criteria:
 
 - OpenAI API dipanggil ketika failed run butuh recovery analysis.
-- Model dikonfigurasi via environment variable.
+- Model default adalah `gpt-4o-mini` dan hanya dapat dioverride via server-side environment variable.
 - Response harus structured dan parseable.
 - Verdict mendukung `HEAL`, `PRODUCT BUG`, dan `SPEC OUTDATED`.
 - Response menyertakan reason, confidence, candidate selector, patch atau bug report.
@@ -493,18 +496,18 @@ Acceptance criteria:
 
 ### FR-010 Rerun Proof
 
-Jika candidate validation berhasil, SpecHeal harus melakukan rerun.
+Jika candidate validation berhasil, SpecHeal harus menerapkan patch ke Playwright test file lalu melakukan rerun.
 
 Acceptance criteria:
 
-- Rerun memakai candidate selector.
+- Rerun memakai target Playwright test file yang sudah dipatch.
 - Rerun memakai target scenario yang sama.
 - Rerun mencapai `Payment Success`.
-- Patch hanya ditandai safe jika rerun passed.
+- Patch hanya ditandai safe jika validation, patch application, dan rerun passed.
 
-### FR-011 Patch Preview
+### FR-011 Patch Application and Preview
 
-Untuk verdict `HEAL`, SpecHeal harus menampilkan patch preview.
+Untuk verdict `HEAL`, SpecHeal harus menerapkan patch locator ke target Playwright test file secara controlled dan menampilkan applied patch preview.
 
 Acceptance criteria:
 
@@ -512,6 +515,7 @@ Acceptance criteria:
 - Patch mencakup old line.
 - Patch mencakup new line.
 - Patch mencakup explanation.
+- Patch hanya mengubah locator test yang relevan.
 - Patch tidak auto-commit dan tidak auto-merge.
 
 ### FR-012 Jira Publishing
@@ -534,7 +538,7 @@ Placeholder konfigurasi:
 
 ```env
 JIRA_SITE_URL=https://<team>.atlassian.net
-JIRA_EMAIL=<email>
+JIRA_USER_EMAIL=<email>
 JIRA_API_TOKEN=<token>
 JIRA_PROJECT_KEY=<project-key>
 JIRA_TASK_ISSUE_TYPE=Task
@@ -551,7 +555,7 @@ Acceptance criteria:
 - Menyimpan verdict dan reason.
 - Menyimpan AI trace.
 - Menyimpan evidence summary.
-- Menyimpan patch preview.
+- Menyimpan applied patch preview.
 - Menyimpan validation dan rerun result.
 - Menyimpan Jira publish result jika run membutuhkan Jira action.
 - Menyediakan recent runs.
@@ -622,7 +626,7 @@ Response minimal:
 - reason,
 - confidence,
 - candidate selector,
-- patch preview jika `HEAL`,
+- applied patch preview jika `HEAL`,
 - bug/task report jika bukan `HEAL`.
 
 ### 13.2 Jira
@@ -663,7 +667,8 @@ PostgreSQL menyimpan:
 - run history,
 - AI trace,
 - evidence,
-- patch preview,
+- screenshot evidence sebagai base64,
+- applied patch preview,
 - validation result,
 - rerun result,
 - Jira publish result jika applicable.
@@ -672,8 +677,7 @@ PostgreSQL menyimpan:
 
 Kubernetes menjadi target deployment semua runtime component:
 
-- dashboard/API app,
-- Playwright runtime,
+- satu app container untuk dashboard/API, in-process Playwright runtime, OpenAI client, dan Jira publisher,
 - PostgreSQL,
 - service/ingress,
 - secrets.
@@ -801,7 +805,7 @@ MVP dianggap berhasil jika:
 3. Product Bug scenario berjalan end-to-end.
 4. OpenAI benar-benar dipanggil pada failed run.
 5. OpenSpec clause terlihat di prompt/report.
-6. `HEAL` menghasilkan validation proof dan rerun proof.
+6. `HEAL` menghasilkan validation proof, applied test patch, dan rerun proof.
 7. `PRODUCT BUG` tidak menghasilkan safe patch.
 8. Jira Task berhasil dibuat untuk `HEAL`.
 9. Jira Bug berhasil dibuat untuk `PRODUCT BUG`.
@@ -832,7 +836,7 @@ Automation testing mempercepat regression testing, tapi UI test failure tidak se
 Locator Drift:
 
 ```text
-Di skenario ini selector gagal, tapi payment behavior masih sesuai OpenSpec. SpecHeal meminta OpenAI memberi verdict, memvalidasi candidate di browser, melakukan rerun, lalu membuat Jira Task untuk review patch.
+Di skenario ini selector gagal, tapi payment behavior masih sesuai OpenSpec. SpecHeal meminta OpenAI memberi verdict, memvalidasi candidate di browser, menerapkan patch ke test file, melakukan rerun, lalu membuat Jira Task untuk review patch.
 ```
 
 Product Bug:
@@ -864,8 +868,8 @@ SpecHeal bukan sekadar self-healing. SpecHeal adalah safe recovery layer: AI pro
 Dependencies:
 
 - OpenAI API key.
-- Jira Cloud site.
-- Jira project key.
+- Jira Cloud site `https://specheal.atlassian.net`.
+- Jira project key `SH`.
 - Jira API token.
 - PostgreSQL.
 - Kubernetes VPS dari penyelenggara.
@@ -877,15 +881,13 @@ Assumptions:
 - Judge dapat mengakses dashboard via URL deployment.
 - Demo memakai seeded scenario agar run deterministic dan mudah dinilai.
 - OpenSpec ditulis cukup eksplisit untuk membedakan safe heal dan product bug.
+- Model OpenAI MVP memakai `gpt-4o-mini`.
+- Screenshot evidence MVP disimpan sebagai base64 di PostgreSQL.
 
 ## 22. Open Questions
 
-- Jira project key final apa?
-- Jira issue type final apa?
-- Model OpenAI final apa untuk demo?
 - Domain/Ingress Kubernetes dari penyelenggara seperti apa?
-- Screenshot evidence disimpan sebagai base64, file, atau object reference?
-- Jira issue MVP perlu attachment screenshot, atau cukup evidence summary dan link report?
+- Jira permission dan issue type `Task`/`Bug` perlu divalidasi dengan API setelah credential aman dan di-rotate jika pernah terpapar.
 
 ## 23. Future Roadmap
 
@@ -911,5 +913,5 @@ Setelah MVP:
 | HEAL | Verdict bahwa test aman diperbaiki dengan patch locator |
 | PRODUCT BUG | Verdict bahwa produk melanggar requirement |
 | SPEC OUTDATED | Verdict bahwa test/spec mapping perlu diperbarui |
-| Rerun proof | Bukti test berhasil setelah memakai candidate selector |
+| Rerun proof | Bukti test berhasil setelah patch locator diterapkan ke test file |
 | Jira publisher | Komponen yang membuat issue Jira dari report |

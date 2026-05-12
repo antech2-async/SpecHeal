@@ -11,7 +11,7 @@ The goal of this file is to give incoming agents and collaborators enough projec
 - Required direction: build a real end-to-end AI-powered software engineering productivity product.
 - Required foundations from the event brief: OpenSpec, LLMs, Kubernetes/deployment, and PostgreSQL.
 - Judging emphasis: innovation, impact, technical execution, UX/design, and clear presentation.
-- Important rule: all hackathon project code must be developed during the hackathon. Older experiments may be used as knowledge/reference, but do not copy pre-existing non-open-source project code into this repo.
+- Important rule: all hackathon project code must be developed during the hackathon. Do not copy pre-existing non-open-source project code into this repo.
 
 ## Product Thesis
 
@@ -59,6 +59,7 @@ Playwright failure
 -> OpenSpec requirement lookup
 -> AI-assisted verdict
 -> browser candidate validation
+-> controlled test-file patch when HEAL is safe
 -> rerun proof
 -> reviewable patch or Jira-ready bug report
 ```
@@ -94,6 +95,8 @@ Expected HEAL patch example:
 + await page.getByTestId("complete-payment").click();
 ```
 
+For MVP, a `HEAL` result should apply the locator patch to the target Playwright test file in a controlled runtime/workspace path before rerun proof. The system must still avoid auto-commit, auto-merge, or product-code edits.
+
 Expected product bug output:
 
 ```text
@@ -111,10 +114,11 @@ OpenSpec artifacts now exist in this repo under:
 
 Treat the active OpenSpec change as the implementation contract until it is revised or archived.
 
-When creating the first OpenSpec artifacts, separate these two domains:
+OpenSpec is organized into three capabilities:
 
 - `shopflow-checkout`: product behavior of the tiny checkout app under test.
 - `specheal-recovery`: behavior of SpecHeal itself as a safe recovery product.
+- `jira-integration`: behavior of the Jira workflow handoff for actionable run results.
 
 ShopFlow product OpenSpec should be selector-agnostic:
 
@@ -123,7 +127,7 @@ ShopFlow product OpenSpec should be selector-agnostic:
 - It should say the product requirement is not satisfied if no valid payment action exists.
 - It should not mention `#pay-now`, `data-testid`, Playwright, or healing internals.
 
-SpecHeal recovery OpenSpec should define:
+SpecHeal recovery OpenSpec defines:
 
 - seeded demo project and scenario picker,
 - failure evidence capture,
@@ -138,11 +142,22 @@ SpecHeal recovery OpenSpec should define:
 - honest OpenAI failure handling without deterministic or precomputed verdict fallback,
 - Jira publishing for actionable results.
 
+Jira integration OpenSpec defines:
+
+- Jira configuration readiness,
+- automatic issue publishing for actionable results,
+- issue type mapping,
+- Jira payload content,
+- Atlassian Document Format descriptions,
+- publish result persistence,
+- publish retry,
+- transparent publish failure handling.
+
 ## Current Alignment
 
-- Build this repo as the from-zero hackathon app. Older experiments may inform standards and domain understanding, but do not copy pre-existing non-open-source code into this repo.
+- Build this repo as the from-zero hackathon app.
 - SpecHeal is a proposal-and-proof system, not an automatic product-code fixer.
-- `HEAL` means SpecHeal proposes a reviewable Playwright test locator patch after OpenSpec guardrail, browser validation, and rerun proof.
+- `HEAL` means SpecHeal applies a reviewable Playwright test locator patch in the controlled demo runtime after OpenSpec guardrail and browser validation, then proves it with rerun.
 - `PRODUCT BUG` means required product behavior is missing or unavailable; SpecHeal produces evidence and a Jira Bug, not a safe patch.
 - `SPEC OUTDATED` means the test/spec mapping needs human review; SpecHeal produces a Jira Task.
 - `NO_HEAL_NEEDED` means the baseline run passed; persist it as an audit report and do not create a Jira issue by default.
@@ -155,9 +170,9 @@ Recommended stack:
 
 - Next.js app router for the dashboard and demo app.
 - Playwright for browser execution, evidence capture, validation, and rerun.
-- LLM provider for structured verdict generation.
+- OpenAI `gpt-4o-mini` for structured verdict generation.
 - PostgreSQL with Drizzle or another typed persistence layer for run history and reports.
-- Docker/Kubernetes or k3s deployment for demo readiness.
+- Docker/Kubernetes or k3s deployment for demo readiness, using one app container plus PostgreSQL as the separate data service for MVP.
 
 Suggested runtime flow:
 
@@ -165,13 +180,14 @@ Suggested runtime flow:
 Dashboard
 -> POST /api/specheal with scenarioId
 -> create run record
--> worker opens /shopflow?state=<scenario>
+-> in-process Playwright runner opens /shopflow?state=<scenario>
 -> run old selector
 -> capture evidence on failure
 -> load relevant OpenSpec clause
 -> get live OpenAI structured verdict
 -> validate candidate selector if HEAL
--> rerun checkout with healed selector
+-> apply validated patch to the target Playwright test file if HEAL
+-> rerun checkout from the patched test file
 -> save structured report
 -> publish Jira issue when the result is actionable
 -> dashboard renders timeline, patch/report, Jira status when applicable, and trace
@@ -201,7 +217,7 @@ Avoid making these the critical path:
 - auth or multi-tenant SaaS features,
 - large-scale analytics,
 - generic AI chatbot UX,
-- real test file patching before the basic demo loop works.
+- arbitrary production repository mutation beyond the controlled demo test-file patch.
 
 Live Jira issue creation is part of the MVP, not stretch. SpecHeal must publish recovery output into Jira when a run produces an actionable result.
 
@@ -215,6 +231,7 @@ The build should prove:
 - Playwright evidence capture.
 - Candidate ranking.
 - Browser validation.
+- Controlled test-file patch application for safe `HEAL`.
 - Rerun proof.
 - Dashboard timeline.
 - Live Jira issue publishing.

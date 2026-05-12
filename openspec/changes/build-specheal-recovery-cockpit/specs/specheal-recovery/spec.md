@@ -55,6 +55,10 @@ The system SHALL capture structured evidence when the Playwright attempt fails.
 - **WHEN** the first Playwright attempt fails
 - **THEN** the system captures the Playwright error, failed selector, target URL, screenshot, DOM evidence, visible page evidence, and candidate elements
 
+#### Scenario: Screenshot evidence is base64
+- **WHEN** screenshot evidence is captured
+- **THEN** the screenshot is encoded as a base64 PNG string for MVP storage
+
 #### Scenario: Evidence is stored with run report
 - **WHEN** failure evidence is captured
 - **THEN** the evidence is attached to the run report for dashboard display and audit
@@ -105,11 +109,12 @@ The system SHALL use live OpenAI calls to produce recovery verdicts for failed r
 
 #### Scenario: Failed run invokes OpenAI
 - **WHEN** a Playwright run fails and evidence is available
-- **THEN** the system calls OpenAI with structured failure evidence, candidate context, and OpenSpec context
+- **THEN** the system calls OpenAI model `gpt-4o-mini` with structured failure evidence, candidate context, and OpenSpec context
+- **AND** the model can be overridden only through server-side configuration
 
 #### Scenario: OpenAI returns structured verdict
 - **WHEN** OpenAI returns a response
-- **THEN** the response is parsed into verdict, reason, confidence, candidate selector if any, and recommended output
+- **THEN** the response is parsed into verdict, reason, confidence, candidate selector if any, patch object if any, and Jira-ready report object if any
 
 #### Scenario: Demo does not silently fallback
 - **WHEN** OpenAI is unavailable, returns invalid output, or cannot be parsed
@@ -143,30 +148,35 @@ The system SHALL validate a `HEAL` candidate selector in the browser before trea
 - **THEN** the system does not mark the patch as safe
 
 ### Requirement: Rerun proof
-The system SHALL rerun the checkout test with a validated candidate selector before presenting a safe patch.
+The system SHALL rerun the checkout test through the patched Playwright test file before presenting a safe patch.
 
 #### Scenario: Rerun proves recovered behavior
-- **WHEN** candidate validation passes
-- **THEN** the system reruns the checkout test with the candidate selector and requires `Payment Success`
+- **WHEN** candidate validation passes and the HEAL patch has been applied to the target test file
+- **THEN** the system reruns the checkout test from the patched file and requires `Payment Success`
 
 #### Scenario: Rerun blocks unsafe patch
 - **WHEN** rerun does not reach `Payment Success`
 - **THEN** the system does not present the patch as a safe heal
 
-### Requirement: Patch preview
-The system SHALL generate a reviewable patch preview for safe `HEAL` results.
+### Requirement: Test-file patch application and preview
+The system SHALL apply and display a reviewable Playwright test locator patch for safe `HEAL` results.
+
+#### Scenario: Safe heal patch is applied before proof
+- **WHEN** browser validation passes for a `HEAL` candidate selector
+- **THEN** the system applies the locator patch to the target Playwright test file in the runtime workspace
+- **AND** the applied patch only changes the test locator needed for the failed step
 
 #### Scenario: Safe heal patch is shown
-- **WHEN** validation and rerun proof pass for a `HEAL` verdict
-- **THEN** the report displays target file, old line, new line, and explanation
+- **WHEN** validation, patch application, and rerun proof pass for a `HEAL` verdict
+- **THEN** the report displays target file, old line, new line, applied diff, and explanation
 
-#### Scenario: Patch remains review-only
-- **WHEN** a patch preview is generated
-- **THEN** the system does not auto-commit, auto-merge, or directly modify repository code as part of the MVP
+#### Scenario: Patch is not committed automatically
+- **WHEN** an applied patch preview is generated
+- **THEN** the system does not auto-commit, auto-merge, or create a GitHub pull request as part of the MVP
 
 #### Scenario: Patch targets the test, not product code
 - **WHEN** the system presents a safe `HEAL` patch
-- **THEN** the patch is presented as a proposed test locator update
+- **THEN** the patch is presented as an applied Playwright test locator update that remains reviewable
 - **AND** the system does not claim to repair product implementation code
 
 ### Requirement: Product bug report output
@@ -225,8 +235,12 @@ The system SHALL persist run history and audit artifacts in PostgreSQL.
 - **THEN** scenario, status, verdict, reason, confidence, timestamps, and terminal result are stored
 
 #### Scenario: Run artifacts are stored
-- **WHEN** evidence, AI trace, patch preview, validation result, rerun result, or Jira publish result is produced
+- **WHEN** evidence, AI trace, applied patch preview, validation result, rerun result, or Jira publish result is produced
 - **THEN** the artifact is stored with the run
+
+#### Scenario: Screenshot artifact is stored in PostgreSQL
+- **WHEN** a screenshot is captured for a run
+- **THEN** the base64 screenshot is stored as part of the PostgreSQL-backed run artifact
 
 #### Scenario: Recent runs are visible
 - **WHEN** the dashboard loads
@@ -256,6 +270,11 @@ The system SHALL record operational errors as terminal run results when a recove
 
 ### Requirement: Kubernetes deployment readiness
 The system SHALL be deployable as runtime artifacts on Kubernetes.
+
+#### Scenario: MVP uses one app container
+- **WHEN** the MVP is deployed to Kubernetes
+- **THEN** dashboard, API/backend routes, in-process Playwright runner, OpenAI verdict generation, and Jira publishing run from one app container
+- **AND** PostgreSQL is deployed or connected as a separate service
 
 #### Scenario: Runtime configuration uses secrets
 - **WHEN** the system is deployed to Kubernetes

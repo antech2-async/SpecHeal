@@ -6,11 +6,22 @@ The system SHALL support Jira Cloud configuration through server-side environmen
 #### Scenario: Jira configuration is available
 - **WHEN** the application starts with Jira environment variables configured
 - **THEN** the system can identify Jira site URL, email, API token, project key, Task issue type, and Bug issue type
+- **AND** the required variable names are `JIRA_SITE_URL`, `JIRA_USER_EMAIL`, `JIRA_API_TOKEN`, `JIRA_PROJECT_KEY`, `JIRA_TASK_ISSUE_TYPE`, and `JIRA_BUG_ISSUE_TYPE`
+
+#### Scenario: Team-managed Jira project is supported
+- **WHEN** the configured Jira project is a team-managed Jira Cloud project
+- **THEN** the system creates issues through Jira Cloud REST API using the configured project key and issue type names
+- **AND** the MVP target project key is `SH`
 
 #### Scenario: Jira configuration is missing
 - **WHEN** required Jira configuration is missing
 - **THEN** the dashboard shows Jira as not ready
 - **AND** actionable terminal runs record Jira publish failure instead of hiding the problem
+
+#### Scenario: Jira secrets are not persisted
+- **WHEN** Jira publishing runs
+- **THEN** API token and user email are read from server-side environment only
+- **AND** API token is not stored in PostgreSQL, report JSON, dashboard output, or Jira issue body
 
 ### Requirement: Automatic Jira publishing for actionable results
 The system SHALL attempt to publish actionable terminal run results to Jira automatically.
@@ -57,10 +68,11 @@ The system SHALL include enough recovery context in each Jira issue for a develo
 #### Scenario: Jira issue contains common run fields
 - **WHEN** the system creates any Jira issue
 - **THEN** the issue includes SpecHeal run ID, scenario name, terminal result, summary, reason, OpenSpec reference, and dashboard report reference when available
+- **AND** the issue summary is prefixed with `[SpecHeal]`
 
 #### Scenario: Jira issue contains HEAL proof
 - **WHEN** the system creates a Jira issue for `HEAL`
-- **THEN** the issue includes patch preview, candidate selector, validation result, rerun result, and AI confidence
+- **THEN** the issue includes applied patch preview, candidate selector, validation result, rerun result, and AI confidence
 
 #### Scenario: Jira issue contains product bug evidence
 - **WHEN** the system creates a Jira issue for `PRODUCT BUG`

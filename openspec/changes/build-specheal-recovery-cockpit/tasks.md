@@ -2,8 +2,8 @@
 
 - [ ] 1.1 Scaffold the web application with TypeScript, React/Next.js, linting, and environment configuration.
 - [ ] 1.2 Add runtime dependencies for Playwright, OpenAI, PostgreSQL access, Jira API calls, and validation utilities.
-- [ ] 1.3 Define required environment variables for OpenAI, Jira, database, base URL, and Playwright runtime.
-- [ ] 1.4 Create initial PostgreSQL schema for runs, evidence, AI traces, validation results, rerun results, patch previews, and Jira publish results.
+- [ ] 1.3 Define required environment variables for OpenAI model/API key, Jira Cloud REST API, database, base URL, and Playwright runtime.
+- [ ] 1.4 Create initial PostgreSQL schema for runs, evidence, base64 screenshots, AI traces, validation results, applied patch previews, rerun results, and Jira publish results.
 
 ## 2. ShopFlow Checkout Demo
 
@@ -23,7 +23,7 @@
 ## 4. Playwright Evidence Pipeline
 
 - [ ] 4.1 Implement Playwright checkout execution against the selected ShopFlow state.
-- [ ] 4.2 Capture failure evidence: error, screenshot, failed selector, target URL, raw DOM length, and visible page text.
+- [ ] 4.2 Capture failure evidence: error, base64 PNG screenshot, failed selector, target URL, raw DOM length, and visible page text.
 - [ ] 4.3 Implement DOM cleaning and sensitive data masking.
 - [ ] 4.4 Implement candidate extraction from visible/enabled body-level interactive elements.
 - [ ] 4.5 Implement candidate ranking and explicit zero-candidate reporting.
@@ -31,7 +31,7 @@
 ## 5. OpenAI Verdict Pipeline
 
 - [ ] 5.1 Implement prompt builder using test metadata, failure evidence, candidate context, and OpenSpec clause.
-- [ ] 5.2 Implement live OpenAI call with structured response parsing.
+- [ ] 5.2 Implement live OpenAI call with `gpt-4o-mini` default model and structured response parsing.
 - [ ] 5.3 Support verdicts `HEAL`, `PRODUCT BUG`, and `SPEC OUTDATED` for failed runs.
 - [ ] 5.4 Store system prompt, user prompt, raw response, parsed response, usage metadata, duration, and estimated cost when available.
 - [ ] 5.5 Implement clear AI failure handling without silently substituting deterministic or precomputed verdicts.
@@ -40,15 +40,16 @@
 ## 6. Validation, Rerun, and Output Generation
 
 - [ ] 6.1 Implement browser validation for `HEAL` candidate selectors.
-- [ ] 6.2 Implement rerun proof with the validated candidate selector.
-- [ ] 6.3 Generate safe patch preview only after validation and rerun pass.
-- [ ] 6.4 Generate product bug report output when required OpenSpec behavior is missing.
-- [ ] 6.5 Generate operational error report output when the run fails before a recovery verdict.
-- [ ] 6.6 Ensure product bug output never claims that SpecHeal repaired product code.
+- [ ] 6.2 Generate and apply the safe locator patch to the target Playwright test file after candidate validation.
+- [ ] 6.3 Implement rerun proof from the patched Playwright test file and require `Payment Success`.
+- [ ] 6.4 Generate safe patch preview/applied diff only after validation, patch application, and rerun pass.
+- [ ] 6.5 Generate product bug report output when required OpenSpec behavior is missing.
+- [ ] 6.6 Generate operational error report output when the run fails before a recovery verdict.
+- [ ] 6.7 Ensure product bug output never claims that SpecHeal repaired product code.
 
 ## 7. Jira Integration
 
-- [ ] 7.1 Implement Jira configuration reader and readiness status.
+- [ ] 7.1 Implement Jira configuration reader and readiness status for `JIRA_SITE_URL`, `JIRA_USER_EMAIL`, `JIRA_API_TOKEN`, `JIRA_PROJECT_KEY`, `JIRA_TASK_ISSUE_TYPE`, and `JIRA_BUG_ISSUE_TYPE`.
 - [ ] 7.2 Implement Jira Cloud create issue client using Atlassian email and API token.
 - [ ] 7.3 Build Atlassian Document Format descriptions for actionable terminal run result types.
 - [ ] 7.4 Persist `NO_HEAL_NEEDED` runs as audit reports without creating Jira issues by default.
@@ -70,9 +71,9 @@
 
 ## 9. Kubernetes Deployment
 
-- [ ] 9.1 Create Dockerfile that includes app runtime and Playwright browser dependencies.
-- [ ] 9.2 Create Kubernetes manifests for app Deployment, Service, and optional Ingress.
-- [ ] 9.3 Create PostgreSQL deployment/service or document external PostgreSQL connection.
+- [ ] 9.1 Create Dockerfile for a single app container that includes dashboard/API runtime, in-process runner, Jira/OpenAI clients, and Playwright browser dependencies.
+- [ ] 9.2 Create Kubernetes manifests for single app Deployment, Service, and optional Ingress.
+- [ ] 9.3 Create PostgreSQL deployment/service or document external PostgreSQL connection as the separate data service.
 - [ ] 9.4 Create Kubernetes Secret template for OpenAI, Jira, database, and runtime config.
 - [ ] 9.5 Verify the deployed dashboard can reach OpenAI, Jira, PostgreSQL, and ShopFlow runtime routes.
 
@@ -83,7 +84,7 @@
 - [ ] 10.3 Add tests or scripted checks for Jira payload mapping.
 - [ ] 10.4 Add tests or scripted checks proving no deterministic fallback is used when OpenAI is unavailable.
 - [ ] 10.5 Add tests or scripted checks proving `NO_HEAL_NEEDED` creates a report without Jira publish.
-- [ ] 10.6 Run Locator Drift scenario end-to-end with live OpenAI and Jira Task creation.
+- [ ] 10.6 Run Locator Drift scenario end-to-end with live OpenAI, applied test patch, rerun proof, and Jira Task creation.
 - [ ] 10.7 Run Product Bug scenario end-to-end with live OpenAI and Jira Bug creation.
 - [ ] 10.8 Verify recent runs and full report persist after reload.
 - [ ] 10.9 Prepare a 5-minute demo script using the deployed Kubernetes URL.
