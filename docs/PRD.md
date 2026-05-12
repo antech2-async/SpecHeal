@@ -1,10 +1,12 @@
 # Product Requirements Document: SpecHeal
 
-Status: Draft planning  
+Status: Draft  
 Tim: Merge Kalau Berani  
 Event: Refactory Hackathon 2026, Telkom Round  
 Tanggal: 12 Mei 2026  
-Target pembaca: judge, mentor, developer, dan stakeholder hackathon
+Target pembaca: QA Engineer, developer, dan stakeholder hackathon
+
+---
 
 ## 1. Executive Summary
 
@@ -20,11 +22,13 @@ Core thesis:
 
 > SpecHeal bukan sekadar membuat test hijau. SpecHeal membuat recovery test bisa dipercaya.
 
+---
+
 ## 2. Product Positioning
 
 Kategori produk:
 
-```text
+```
 AI-assisted UI test recovery cockpit
 ```
 
@@ -40,9 +44,11 @@ SpecHeal bukan:
 
 Pembeda utama:
 
-```text
+```
 AI proposes. OpenSpec guards. Browser validates. Jira tracks.
 ```
+
+---
 
 ## 3. Hackathon Context
 
@@ -62,42 +68,70 @@ Kebutuhan utama hackathon yang dipenuhi SpecHeal:
 - PostgreSQL dipakai untuk menyimpan run dan artifact.
 - Jira dipakai sebagai workflow output.
 - Semua runtime artifact dideploy ke Kubernetes di VPS.
-- Judge dapat menggunakan produk melalui dashboard, bukan hanya menonton slide.
+- Produk dapat digunakan langsung melalui dashboard, bukan hanya ditonton lewat slide.
+
+---
 
 ## 4. Problem Statement
 
-Automation testing membantu tim software mendapatkan feedback cepat. Namun pada UI automation, test failure sering tidak langsung berarti product bug.
+### 4.1 Automation Testing Sudah Jadi Infrastruktur — Bukan Eksperimen
 
-UI test sering bergantung pada detail implementasi:
+Hari ini, **77% perusahaan software** sudah mengadopsi automated testing dalam bentuk tertentu, dan market-nya tumbuh menjadi **$29.29 miliar di 2025** dengan CAGR 15.3% [[1]](https://testlio.com/blog/test-automation-statistics/). Perusahaan yang berhasil mengadopsi Agile dengan automation melaporkan produktivitas **30–50% lebih tinggi** dan time-to-market **2–3× lebih cepat** [[2]](https://katalon.com/resources-center/blog/test-automation-statistics-for-2025).
 
-- selector,
-- id HTML,
-- atribut test,
-- struktur DOM,
-- teks tombol,
-- posisi elemen.
+Automation testing bukan lagi fitur opsional — ia adalah tulang punggung engineering workflow modern. Regression suite yang solid memungkinkan tim bergerak cepat tanpa takut merusak production.
 
-Ketika UI berubah, test bisa gagal walaupun behavior produk tetap benar.
+### 4.2 Masalah yang Tumbuh Diam-diam: Test Failure yang Tidak Bisa Dipercaya
 
-Contoh:
+Namun ada krisis kepercayaan yang sedang berkembang di balik angka adopsi tersebut.
+
+Di Google, **84% CI failure bukan dari product bug**, tapi dari test yang rapuh [[3]](https://slack.engineering/handling-flaky-tests-at-scale-auto-detection-suppression/). Di Slack, sebelum ada remediation khusus, **56.76% CI failure** berasal dari test yang tidak stabil [[3]](https://slack.engineering/handling-flaky-tests-at-scale-auto-detection-suppression/). Atlassian membuang lebih dari **150.000 developer hours per tahun** hanya untuk menangani masalah ini [[4]](https://www.datadoghq.com/knowledge-center/flaky-tests/). Secara industri, **40% waktu QA team** dihabiskan untuk maintenance test — bukan untuk menemukan bug [[4]](https://www.datadoghq.com/knowledge-center/flaky-tests/).
+
+Akibatnya, "CI merah" kehilangan makna. Tim tidak tahu lagi apakah pipeline merah berarti produk rusak atau test yang rusak.
+
+### 4.3 Akar Masalahnya: Locator Drift, Bukan Product Bug
+
+Sumber utama test failure yang tidak relevan ini adalah **locator drift** — kondisi di mana selector test berubah karena UI diupdate, namun behavior produk sebenarnya masih benar.
+
+Setiap sprint dua minggu, diperkirakan **15–25% test suite** gagal karena perubahan locator, bukan karena regresi produk [[5]](https://karatelabs.io/blog/end-of-locator-hell). QA team menghabiskan **sekitar 2 hari per sprint** hanya untuk memperbaiki test yang rusak akibat perubahan ini [[5]](https://karatelabs.io/blog/end-of-locator-hell). Dengan makin cepatnya iterasi UI — dipercepat oleh AI coding assistants — masalah ini disebut sudah **"unsustainable at current rates"** [[5]](https://karatelabs.io/blog/end-of-locator-hell).
+
+Contoh konkret:
 
 ```ts
+// Test yang ditulis minggu lalu
 await page.click("#pay-now");
 ```
 
-Tombol payment tetap ada, tetapi selector berubah:
+Tombol payment tetap ada dan berfungsi di UI — tetapi developer baru saja refactor komponennya:
 
 ```html
 <button data-testid="complete-payment">Pay Now</button>
 ```
 
-Dari sisi user, checkout masih bisa berhasil. Dari sisi CI, pipeline tetap merah.
+Dari sisi user, checkout masih berjalan normal. Dari sisi CI, pipeline merah. Dari sisi tim, ini waktu investigasi yang terbuang.
 
-Masalah yang lebih berbahaya adalah false green. Jika AI asal memilih selector baru agar test pass, test bisa hijau meskipun requirement produk sebenarnya dilanggar.
+### 4.4 Solusi yang Ada Justru Menciptakan Masalah Baru
+
+Industri sudah merespons masalah ini dengan **AI self-healing** — fitur yang secara otomatis mencari elemen pengganti saat selector gagal, agar test bisa lanjut tanpa intervensi manual.
+
+Namun sebuah studi terhadap **437 enterprise implementations** menemukan fakta yang mengkhawatirkan: tim yang menggunakan self-healing mengalami **false positive rate 23% lebih tinggi** dan menghabiskan **31% lebih banyak waktu debugging** akibat perbaikan yang diintroduce AI [[6]](https://bugbug.io/blog/test-automation/self-healing-test-automation/). Lebih jauh, selector-only healing hanya mampu menangani **28% dari seluruh jenis test failure** — selebihnya tidak tercover [[7]](https://www.qawolf.com/blog/self-healing-test-automation-types).
+
+Skenario terburuknya sudah terdokumentasi:
+
+> Tombol "Pay Now" hilang karena product regression. Self-healing menemukan elemen lain yang terlihat mirip secara visual. Test **pass**. Bug lolos ke production.
+
+Ini adalah **false green** — kondisi di mana test pass bukan karena produk benar, tapi karena AI memilih elemen yang salah. Ketika ini terjadi, kepercayaan terhadap automation runtuh sepenuhnya: *"Once a suite is known to 'lie,' engineers stop trusting automation. A green build becomes meaningless."* [[6]](https://bugbug.io/blog/test-automation/self-healing-test-automation/)
+
+### 4.5 Gap yang Belum Terjawab
+
+Di sinilah problem sesungguhnya: tidak ada tool yang dapat menjawab satu pertanyaan sederhana namun krusial ini dengan bukti yang bisa diaudit —
+
+> **Apakah test ini gagal karena UI berubah, atau karena produk benar-benar rusak?**
+
+Self-healing menjawab pertanyaan ini dengan asumsi: "mungkin aman, kita fix saja." SpecHeal menjawabnya dengan bukti: behavior produk diverifikasi terhadap spesifikasi, candidate selector divalidasi langsung di browser, rerun membuktikan hasilnya, dan keputusan recovery tercatat untuk diaudit.
 
 SpecHeal menyelesaikan problem ini dengan safe recovery loop:
 
-```text
+```
 Playwright failure
 -> evidence capture
 -> OpenSpec requirement
@@ -108,17 +142,19 @@ Playwright failure
 -> Jira action
 ```
 
+---
+
 ## 5. Goals
 
 ### 5.1 Product Goals
 
 1. Menyediakan dashboard untuk menjalankan scenario recovery UI test.
 2. Menggunakan live OpenAI untuk menganalisis failure evidence dan OpenSpec.
-3. Membedakan `HEAL`, `PRODUCT BUG`, `SPEC OUTDATED`, dan `NO_HEAL_NEEDED`.
+3. Membedakan `HEAL`, `PRODUCT BUG`, `SPEC OUTDATED`, `NO_HEAL_NEEDED`, dan `RUN_ERROR`.
 4. Membuktikan `HEAL` melalui browser validation, controlled test-file patch, dan rerun proof.
 5. Membuat Jira issue secara live untuk hasil recovery yang membutuhkan action.
 6. Menyimpan run history dan audit trail ke PostgreSQL.
-7. Menyediakan full report yang bisa diaudit oleh judge, mentor, dan developer.
+7. Menyediakan full report yang bisa diaudit oleh QA Engineer dan developer.
 8. Menyediakan deployment Kubernetes untuk seluruh runtime MVP.
 
 ### 5.2 Demo Goals
@@ -141,114 +177,93 @@ SpecHeal harus menunjukkan nilai engineering productivity:
 - menjaga confidence terhadap automated test,
 - membuat output langsung actionable di Jira.
 
+---
+
 ## 6. Non-Goals
 
 Untuk MVP hackathon, SpecHeal tidak menargetkan:
 
-- testing website arbitrary,
-- auto-commit atau auto-merge patch,
+- testing website arbitrary (bukan ShopFlow),
+- auto-commit atau auto-merge patch ke repository,
 - GitHub PR automation,
 - authentication dan multi-tenant workspace,
-- support Cypress/Selenium,
+- support Cypress, Selenium, atau framework lain,
 - analytics historis skala besar,
 - enterprise policy engine,
-- live attachment screenshot ke Jira,
-- demo utama untuk `SPEC OUTDATED`.
+- live attachment screenshot langsung ke Jira,
+- demo utama untuk `SPEC OUTDATED`,
+- heal untuk konteks refactor UI yang sangat kompleks — SpecHeal hanya dapat memperbaiki selector drift yang terlokalisasi, bukan refactor arsitektur komponen secara menyeluruh.
 
-`SPEC OUTDATED` tetap didukung dalam verdict/schema, tetapi bukan alur demo utama kecuali core MVP selesai lebih awal.
+`SPEC OUTDATED` tetap didukung dalam verdict dan schema, tetapi bukan alur demo utama kecuali core MVP selesai lebih awal.
+
+---
 
 ## 7. Target Users
 
-### 7.1 Judge Hackathon
+### 7.1 QA Engineer
+
+QA Engineer adalah satu-satunya primary user SpecHeal.
 
 Kebutuhan:
 
-- melihat produk yang benar-benar berjalan,
-- memahami problem dengan cepat,
-- melihat AI dipakai dengan guardrail,
-- melihat output actionable masuk ke Jira,
-- menilai end-to-end execution.
+- tahu apakah test failure aman diperbaiki atau produk benar-benar rusak,
+- melihat evidence kegagalan tanpa harus inspect manual di browser,
+- mendapatkan patch preview atau bug report yang bisa langsung ditindaklanjuti,
+- memverifikasi bahwa keputusan recovery konsisten dengan requirement produk (OpenSpec),
+- mengaudit riwayat run dan memastikan tidak ada false green yang lolos.
 
 Success signal:
 
-- judge dapat menjalankan scenario dan melihat hasil lengkap tanpa terminal.
+- QA Engineer dapat menjalankan scenario, membaca verdict, memahami reasoning-nya, dan meneruskan output ke developer — semuanya dari satu dashboard tanpa terminal.
 
-### 7.2 Mentor
-
-Kebutuhan:
-
-- memahami scope MVP,
-- menilai risiko teknis,
-- melihat arsitektur dan tradeoff,
-- memberi masukan terhadap implementasi.
-
-Success signal:
-
-- mentor dapat membaca PRD, C4, dan OpenSpec lalu memahami keputusan scope.
-
-### 7.3 QA Engineer
-
-Kebutuhan:
-
-- tahu apakah test failure aman diperbaiki,
-- melihat evidence tanpa inspect manual terlalu lama,
-- mendapatkan patch atau bug report yang bisa ditindaklanjuti.
-
-Success signal:
-
-- QA engineer dapat membedakan maintenance test dari product regression.
-
-### 7.4 Frontend Engineer
-
-Kebutuhan:
-
-- tahu apakah UI refactor merusak behavior atau hanya selector test,
-- mendapatkan patch test yang jelas,
-- menerima Jira issue yang punya evidence.
-
-Success signal:
-
-- frontend engineer dapat memperbaiki test atau produk berdasarkan report.
-
-### 7.5 Engineering Lead
-
-Kebutuhan:
-
-- menjaga trust terhadap CI,
-- menghindari false green,
-- memastikan failure menghasilkan action yang jelas.
-
-Success signal:
-
-- lead dapat melihat audit trail untuk setiap run dan Jira output untuk hasil yang membutuhkan action.
+---
 
 ## 8. MVP Scope
 
-### 8.1 In Scope
+### 8.1 Hackathon Context
 
-MVP mencakup:
+Refactory Hackathon 2026 mengangkat tema Engineering Productivity x AI. SpecHeal memenuhi semua fondasi wajib:
 
-- Dashboard SpecHeal.
-- Seeded demo app: ShopFlow Checkout.
+| Fondasi Wajib | Implementasi di SpecHeal |
+| --- | --- |
+| OpenSpec | Dipakai sebagai source of truth untuk semua verdict — bukan hanya dokumentasi |
+| LLM / AI | OpenAI sebagai core verdict engine dengan structured response dan audit trace |
+| Kubernetes | Seluruh runtime MVP (dashboard, Playwright, PostgreSQL) di-deploy ke Kubernetes VPS |
+| PostgreSQL | Menyimpan run history, AI trace, evidence, patch, dan Jira publish result |
+
+### 8.2 In Scope
+
+- Dashboard SpecHeal sebagai cockpit utama.
+- Seeded demo app: ShopFlow Checkout (cart → checkout → pay → Payment Success).
 - Scenario picker: Healthy Flow, Locator Drift, Product Bug.
-- Runtime Playwright execution.
-- Failure evidence capture.
+- Runtime Playwright execution dengan failure evidence capture.
 - DOM cleaning dan sensitive data masking.
-- Candidate selector extraction.
-- OpenSpec requirement loading.
-- Live OpenAI verdict.
-- Browser candidate validation.
-- Controlled test-file patch application untuk `HEAL`.
-- Rerun proof dari test file yang sudah dipatch.
-- Applied patch preview untuk `HEAL`.
-- Jira issue publishing untuk `HEAL` dan `PRODUCT BUG`.
-- PostgreSQL persistence.
-- Recent runs dan full report.
-- Kubernetes deployment.
+- Candidate selector extraction dan ranking.
+- OpenSpec requirement loading sebagai guardrail.
+- Live OpenAI verdict dengan structured response.
+- Browser candidate validation (visible, enabled, clickable).
+- Rerun proof sebagai bukti HEAL aman.
+- Patch preview untuk verdict HEAL.
+- Live Jira issue publishing (Task untuk HEAL dan RUN_ERROR, Bug untuk PRODUCT BUG).
+- PostgreSQL persistence untuk run history dan audit trail.
+- Full report per run dengan AI trace dan evidence.
+- Kubernetes deployment untuk seluruh runtime.
 
-### 8.2 Out of Scope
+### 8.3 Out of Scope (MVP)
 
-Out of scope sudah dijelaskan di bagian Non-Goals. Fitur out of scope tidak boleh menjadi blocker untuk demo utama.
+Fitur berikut tidak menjadi blocker demo utama:
+
+- Testing terhadap website arbitrary (bukan ShopFlow).
+- Auto-commit atau auto-merge patch ke repository.
+- GitHub PR automation.
+- Authentication dan multi-tenant workspace.
+- Support Cypress, Selenium, atau framework lain.
+- Analytics historis skala besar.
+- Demo utama untuk SPEC OUTDATED (didukung dalam schema, bukan alur demo utama).
+- Screenshot attachment langsung ke Jira.
+- Heal untuk konteks refactor UI yang sangat kompleks — SpecHeal hanya dapat memperbaiki selector drift yang terlokalisasi, bukan refactor arsitektur komponen secara menyeluruh.
+
+---
 
 ## 9. Demo Product: ShopFlow Checkout
 
@@ -256,7 +271,7 @@ ShopFlow Checkout adalah mini checkout app yang menjadi system under test.
 
 Flow user:
 
-```text
+```
 cart -> checkout -> pay -> Payment Success
 ```
 
@@ -267,6 +282,14 @@ Alasan memilih checkout:
 - payment action adalah critical flow,
 - cocok untuk membedakan locator drift dari product bug,
 - requirement OpenSpec dapat ditulis secara spesifik.
+
+ShopFlow memiliki tiga state yang di-seed untuk scenario:
+
+- **normal** — payment flow berjalan normal, `#pay-now` tersedia.
+- **drift** — UI direfactor, selector berubah menjadi `[data-testid="complete-payment"]`, payment masih berfungsi.
+- **bug** — payment action tidak tersedia, behavior produk rusak.
+
+---
 
 ## 10. Supported Verdicts
 
@@ -310,7 +333,7 @@ Output:
 
 - Jira Bug,
 - evidence failure,
-- no patch as safe heal.
+- tidak ada patch.
 
 ### 10.4 SPEC OUTDATED
 
@@ -324,58 +347,147 @@ Output:
 
 - Jira Task untuk update test/spec mapping.
 
-Catatan:
+Catatan: `SPEC OUTDATED` didukung dalam desain dan schema. Demo utama MVP fokus pada `HEAL` dan `PRODUCT BUG`.
 
-- `SPEC OUTDATED` didukung dalam desain dan schema.
-- Demo utama MVP fokus pada `HEAL` dan `PRODUCT BUG`.
+### 10.5 RUN_ERROR
 
-## 11. User Journeys
+Makna:
 
-### 11.1 Journey: Judge menjalankan Locator Drift
+- run gagal karena kegagalan operasional sebelum verdict recovery dihasilkan,
+- contoh: Playwright crash, OpenAI tidak terkonfigurasi, database tidak tersedia,
+- bukan kesalahan produk, bukan locator drift — ini kegagalan sistem SpecHeal sendiri.
 
-1. Judge membuka dashboard SpecHeal.
-2. Judge memilih scenario Locator Drift.
-3. Judge klik Run.
-4. SpecHeal menjalankan Playwright test terhadap ShopFlow.
-5. Test gagal karena selector lama tidak ditemukan.
-6. SpecHeal mengambil screenshot, DOM, visible text, error, dan candidate list.
-7. SpecHeal membaca OpenSpec checkout requirement.
-8. SpecHeal memanggil OpenAI untuk verdict.
-9. OpenAI mengembalikan verdict `HEAL` dengan candidate selector.
-10. SpecHeal memvalidasi candidate selector di browser.
-11. SpecHeal menerapkan patch locator ke target Playwright test file.
-12. SpecHeal melakukan rerun dari test file yang sudah dipatch.
-13. Rerun mencapai `Payment Success`.
-14. Dashboard menampilkan applied patch preview.
-15. SpecHeal membuat Jira Task.
-16. Dashboard menampilkan Jira issue key dan link.
+Output:
 
-### 11.2 Journey: Judge menjalankan Product Bug
+- Jira Task untuk investigasi runtime failure,
+- error state yang jelas di dashboard,
+- tidak ada patch.
 
-1. Judge membuka dashboard SpecHeal.
-2. Judge memilih scenario Product Bug.
-3. Judge klik Run.
-4. SpecHeal menjalankan Playwright test terhadap ShopFlow.
-5. Test gagal karena payment action tidak tersedia.
-6. SpecHeal mengambil evidence.
-7. SpecHeal membaca OpenSpec yang mewajibkan payment action.
-8. SpecHeal memanggil OpenAI untuk verdict.
-9. OpenAI mengembalikan verdict `PRODUCT BUG`.
-10. SpecHeal tidak membuat patch.
-11. SpecHeal membuat Jira Bug.
-12. Dashboard menampilkan issue key, link, dan evidence summary.
+---
 
-### 11.3 Journey: Developer membuka Full Report
+## 11. User Stories
 
-1. Developer memilih recent run.
-2. Developer membuka full report.
-3. Developer melihat timeline.
-4. Developer membuka AI trace.
-5. Developer membaca OpenSpec clause.
-6. Developer melihat validation/rerun proof atau bug evidence.
-7. Developer membuka Jira issue untuk action lanjutan.
+Semua user stories ditulis dari perspektif QA Engineer sebagai satu-satunya primary user SpecHeal.
 
-## 12. Functional Requirements
+### US-01 — Menjalankan Recovery Scenario
+
+Sebagai QA Engineer, saya ingin memilih scenario recovery dari dashboard dan menjalankannya dengan satu klik, sehingga saya dapat langsung mendapat analisis kegagalan tanpa harus setup apapun secara manual.
+
+Acceptance criteria:
+
+- Dashboard menampilkan scenario picker dengan minimal 3 pilihan: Healthy Flow, Locator Drift, Product Bug.
+- Tombol Run aktif setelah scenario dipilih.
+- Dashboard menampilkan loading state yang informatif selama run berlangsung.
+- Verdict tampil di halaman yang sama tanpa navigasi tambahan.
+
+### US-02 — Memahami Penyebab Kegagalan
+
+Sebagai QA Engineer, saya ingin melihat evidence failure secara lengkap di dashboard, sehingga saya tidak perlu membuka browser inspector, membaca CI log, atau inspect DOM secara manual.
+
+Acceptance criteria:
+
+- Evidence mencakup screenshot halaman pada saat test gagal.
+- Evidence mencakup failed selector, Playwright error message, dan target URL.
+- Evidence mencakup cleaned DOM yang dapat dibaca — bebas dari noise script, style, dan metadata.
+- Ranked candidate list ditampilkan sebagai konteks elemen yang tersedia di halaman.
+
+### US-03 — Memverifikasi Verdict HEAL
+
+Sebagai QA Engineer, saya ingin melihat bukti konkret bahwa verdict HEAL benar-benar aman, sehingga saya tidak perlu mempercayai rekomendasi AI secara blind.
+
+Acceptance criteria:
+
+- Dashboard menampilkan candidate selector yang sudah divalidasi di browser.
+- Hasil validasi mencakup: elemen ditemukan, visible, enabled.
+- Status rerun ditampilkan: passed/failed beserta hasil akhirnya (Payment Success atau tidak).
+- Patch preview menampilkan baris lama dan baris baru dengan penjelasan perubahan.
+- Patch tidak auto-commit — hanya preview untuk diserahkan ke developer via Jira Task.
+
+### US-04 — Memahami Dasar Keputusan AI
+
+Sebagai QA Engineer, saya ingin melihat klausul OpenSpec yang dijadikan dasar verdict, sehingga saya dapat memverifikasi bahwa keputusan recovery konsisten dengan requirement produk.
+
+Acceptance criteria:
+
+- OpenSpec clause yang relevan ditampilkan di timeline run.
+- OpenSpec clause mendefinisikan behavior (bukan selector implementasi).
+- AI trace dapat dibuka untuk melihat prompt lengkap, raw response, dan token usage.
+
+### US-05 — Menangani Product Bug
+
+Sebagai QA Engineer, saya ingin mendapat Jira Bug yang informatif ketika verdict PRODUCT BUG, sehingga saya bisa langsung menyerahkannya ke developer tanpa perlu menulis laporan bug dari nol.
+
+Acceptance criteria:
+
+- Dashboard menampilkan verdict PRODUCT BUG dengan jelas secara visual.
+- Dashboard mengkonfirmasi bahwa tidak ada patch yang dihasilkan — tidak ada safe recovery.
+- Jira Bug berhasil dibuat dengan summary, evidence, dan OpenSpec reference yang lengkap.
+- Issue key dan link Jira ditampilkan di dashboard untuk akses langsung.
+
+### US-06 — Mengakses Riwayat Run
+
+Sebagai QA Engineer, saya ingin membuka kembali report dari run sebelumnya, sehingga saya dapat mengaudit keputusan recovery yang pernah dibuat dan memverifikasi tidak ada false green yang lolos.
+
+Acceptance criteria:
+
+- Dashboard menampilkan daftar recent runs dengan status dan verdict masing-masing.
+- Setiap run memiliki full report yang dapat dibuka.
+- Full report menampilkan timeline lengkap: test result, evidence, OpenSpec, verdict, proof, Jira result.
+- AI trace tersedia di full report untuk keperluan audit teknis.
+
+---
+
+## 12. User Journeys
+
+Semua journey ditulis dari perspektif QA Engineer sebagai primary user SpecHeal.
+
+### 12.1 Journey: QA Engineer — Investigasi Locator Drift (HEAL)
+
+Konteks: QA Engineer menerima notifikasi CI merah setelah tim frontend melakukan refactor komponen. Ia membuka SpecHeal untuk menginvestigasi.
+
+1. QA Engineer membuka dashboard SpecHeal.
+2. Ia memilih scenario "Locator Drift" dari scenario picker — sesuai dugaan bahwa ada perubahan UI.
+3. Ia klik Run. Dashboard menampilkan loading state.
+4. SpecHeal menjalankan Playwright test terhadap ShopFlow menggunakan selector lama (`#pay-now`).
+5. Test gagal: selector tidak ditemukan di DOM.
+6. SpecHeal otomatis mengambil screenshot, error, cleaned DOM, dan ranked candidate list.
+7. SpecHeal memuat OpenSpec clause: payment action harus visible dan enabled saat checkout.
+8. SpecHeal memanggil OpenAI — evidence + OpenSpec dikirim, verdict HEAL dikembalikan.
+9. SpecHeal memvalidasi candidate selector `[data-testid="complete-payment"]` di browser: ditemukan, visible, enabled.
+10. SpecHeal melakukan rerun dengan selector baru — berhasil mencapai Payment Success.
+11. Dashboard menampilkan patch preview (lama vs baru), validation proof, dan rerun proof.
+12. SpecHeal membuat Jira Task secara otomatis — QA Engineer melihat issue key dan link di dashboard.
+13. QA Engineer menyerahkan Jira Task ke developer untuk review dan apply patch. Selesai.
+
+### 12.2 Journey: QA Engineer — Investigasi Product Bug
+
+Konteks: QA Engineer mendapat laporan bahwa flow payment di ShopFlow berperilaku aneh. Ia menjalankan scenario Product Bug untuk memverifikasi.
+
+1. QA Engineer membuka dashboard SpecHeal.
+2. Ia memilih scenario "Product Bug" dan klik Run.
+3. SpecHeal menjalankan Playwright test — test gagal karena tidak ada payment action yang tersedia.
+4. SpecHeal mengambil evidence: screenshot, error, dan DOM yang menunjukkan tidak ada elemen payment.
+5. SpecHeal memuat OpenSpec clause: payment completion adalah behavior wajib dari ShopFlow.
+6. SpecHeal memanggil OpenAI — mendapat verdict PRODUCT BUG.
+7. SpecHeal mengkonfirmasi: tidak ada safe recovery. Tidak ada patch yang dibuat.
+8. SpecHeal membuat Jira Bug dengan summary, evidence lengkap, dan OpenSpec reference.
+9. QA Engineer melihat verdict PRODUCT BUG dan Jira Bug key di dashboard.
+10. QA Engineer menyerahkan Jira Bug ke developer untuk investigasi regression. Selesai.
+
+### 12.3 Journey: QA Engineer — Audit Full Report
+
+Konteks: QA Engineer ingin memverifikasi keputusan recovery yang dibuat sebelumnya — memastikan tidak ada false green yang lolos.
+
+1. QA Engineer membuka dashboard dan melihat daftar recent runs.
+2. Ia memilih run yang ingin diaudit dan membuka full report.
+3. Ia melihat timeline lengkap: test result → evidence → OpenSpec → verdict → proof → Jira.
+4. Ia membuka AI trace: memeriksa prompt yang dikirim ke OpenAI, raw response, dan token usage.
+5. Ia membaca klausul OpenSpec yang dijadikan dasar verdict untuk memverifikasi relevansinya.
+6. Ia membuka link Jira issue dari full report untuk melihat status tindak lanjut.
+
+---
+
+## 13. Functional Requirements
 
 ### FR-001 Dashboard Active Project
 
@@ -383,27 +495,19 @@ SpecHeal harus menampilkan dashboard utama untuk project ShopFlow Checkout.
 
 Acceptance criteria:
 
-- Menampilkan nama project.
-- Menampilkan status OpenSpec.
-- Menampilkan status Playwright suite.
-- Menampilkan status Jira configuration.
-- Menampilkan status OpenAI configuration.
-- Menyediakan CTA run scenario.
+- Menampilkan nama project, status OpenSpec, dan status Playwright suite.
+- Menampilkan status koneksi Jira dan OpenAI.
+- Menyediakan CTA run scenario yang aktif setelah scenario dipilih.
 
 ### FR-002 Scenario Picker
 
-Dashboard harus menyediakan scenario picker untuk:
-
-- Healthy Flow,
-- Locator Drift,
-- Product Bug.
+Dashboard harus menyediakan tiga scenario: Healthy Flow, Locator Drift, dan Product Bug.
 
 Acceptance criteria:
 
-- User dapat memilih scenario.
-- Scenario terpilih terlihat jelas.
-- Scenario menentukan target state ShopFlow.
-- CTA menjalankan scenario terpilih.
+- User dapat memilih tepat satu scenario sebelum run.
+- Scenario terpilih terlihat jelas secara visual.
+- Tiap scenario menentukan target state ShopFlow yang berbeda.
 
 ### FR-003 Runtime Test Execution
 
@@ -411,25 +515,19 @@ SpecHeal harus menjalankan Playwright test saat user memulai run.
 
 Acceptance criteria:
 
-- Playwright membuka target ShopFlow.
-- Playwright menjalankan action dengan selector awal.
-- Playwright menunggu expected result `Payment Success`.
-- Result menyimpan status pass/fail, selector, target URL, test name, step name, error, dan duration.
+- Playwright membuka ShopFlow dengan target URL yang sesuai scenario.
+- Test menjalankan action dengan selector awal yang telah ditentukan.
+- Result menyimpan: status pass/fail, selector, target URL, test name, step name, error, dan duration.
 
 ### FR-004 Failure Evidence Capture
 
-Jika Playwright test gagal, SpecHeal harus mengambil evidence.
+Jika test gagal, SpecHeal harus mengambil evidence secara otomatis.
 
 Acceptance criteria:
 
-- Evidence mencakup error message.
-- Evidence mencakup screenshot.
-- Evidence mencakup failed selector.
-- Evidence mencakup target URL.
-- Evidence mencakup raw DOM length.
-- Evidence mencakup cleaned DOM.
-- Evidence mencakup visible page evidence.
-- Evidence mencakup ranked candidate list.
+- Evidence mencakup: error message, screenshot, failed selector, target URL.
+- Evidence mencakup: raw DOM length, cleaned DOM, visible page evidence, ranked candidate list.
+- Evidence tersimpan dan dapat ditampilkan di dashboard serta full report.
 
 ### FR-005 DOM Cleaning and Masking
 
@@ -437,269 +535,188 @@ SpecHeal harus membersihkan DOM sebelum dikirim ke OpenAI.
 
 Acceptance criteria:
 
-- Menghapus noise seperti `head`, `script`, `style`, `meta`, `link`, `noscript`, comments, SVG, iframe, canvas, dan template.
-- Memasking email dan sensitive input values.
-- Menyimpan raw DOM length dan cleaned DOM length.
-- Menggunakan cleaned DOM sebagai evidence utama untuk prompt.
+- Menghapus noise: head, script, style, meta, link, noscript, comments, SVG, iframe, canvas.
+- Masking email dan sensitive input values.
+- Menyimpan raw DOM length dan cleaned DOM length untuk perbandingan.
 
-### FR-006 Candidate Extraction
+### FR-006 Candidate Selector Extraction
 
-SpecHeal harus mengekstrak candidate element yang relevan untuk recovery.
+SpecHeal harus mengekstrak candidate element yang relevan dari DOM yang sudah dibersihkan.
 
 Acceptance criteria:
 
-- Candidate diambil dari body, bukan head metadata.
-- Candidate click harus visible.
-- Candidate click harus enabled.
-- Candidate click harus interaktif atau punya stable locator.
-- Candidate diberi score/ranking.
-- Zero-candidate state harus eksplisit di report.
+- Candidate diambil dari body (bukan head metadata).
+- Candidate click harus visible, enabled, dan interaktif.
+- Candidate diberi score/ranking yang dapat dilihat di report.
+- Zero-candidate state harus eksplisit tercatat di evidence.
 
 ### FR-007 OpenSpec Guardrail
 
-SpecHeal harus memakai OpenSpec sebagai source of truth.
+SpecHeal harus menggunakan OpenSpec sebagai source of truth untuk semua verdict.
 
 Acceptance criteria:
 
-- Prompt OpenAI menyertakan OpenSpec clause yang relevan.
-- OpenSpec ShopFlow mendeskripsikan behavior, bukan selector implementasi.
-- `HEAL` hanya valid jika behavior tetap memenuhi OpenSpec.
-- `PRODUCT BUG` digunakan ketika behavior wajib tidak tersedia.
-- OpenSpec clause ditampilkan di report.
+- Prompt OpenAI menyertakan OpenSpec clause yang relevan untuk scenario.
+- OpenSpec mendefinisikan behavior (bukan selector implementasi).
+- HEAL hanya valid jika behavior tetap memenuhi OpenSpec.
+- OpenSpec clause ditampilkan di report sebagai referensi verdict.
 
 ### FR-008 Live OpenAI Verdict
 
-SpecHeal harus memakai live OpenAI untuk menghasilkan verdict.
+SpecHeal harus memanggil live OpenAI API untuk menghasilkan verdict terstruktur.
 
 Acceptance criteria:
 
-- OpenAI API dipanggil ketika failed run butuh recovery analysis.
-- Model default adalah `gpt-4o-mini` dan hanya dapat dioverride via server-side environment variable.
-- Response harus structured dan parseable.
-- Verdict mendukung `HEAL`, `PRODUCT BUG`, dan `SPEC OUTDATED`.
-- Response menyertakan reason, confidence, candidate selector, patch atau bug report.
-- Dashboard menampilkan model, prompt, raw response, parsed response, token usage, dan estimated cost jika tersedia.
-- Jika OpenAI gagal, run menampilkan failure state yang jujur dan dapat di-retry.
+- OpenAI dipanggil untuk setiap failed run yang membutuhkan recovery analysis.
+- Response harus structured dan parseable (mendukung HEAL, PRODUCT BUG, SPEC OUTDATED).
+- Dashboard menampilkan model, prompt, raw response, parsed response, token usage.
+- Jika OpenAI gagal, run menampilkan failure state yang jujur dengan opsi retry.
 
-### FR-009 Candidate Validation
+### FR-009 Candidate Browser Validation
 
-Jika verdict `HEAL`, SpecHeal harus memvalidasi candidate selector di browser.
+Jika verdict HEAL, SpecHeal harus memvalidasi candidate selector langsung di browser.
 
 Acceptance criteria:
 
-- Candidate selector match tepat satu elemen.
-- Elemen visible.
-- Elemen enabled.
-- Elemen bisa menerima click trial.
-- Validation result tersimpan di report.
-- Patch tidak boleh dianggap safe jika validation gagal.
+- Candidate selector harus match tepat satu elemen.
+- Elemen harus visible dan enabled saat validasi.
+- Elemen harus dapat menerima click trial.
+- Patch tidak boleh ditandai safe jika validasi gagal.
 
 ### FR-010 Rerun Proof
 
-Jika candidate validation berhasil, SpecHeal harus menerapkan patch ke Playwright test file lalu melakukan rerun.
+Jika candidate validation berhasil, SpecHeal harus melakukan rerun sebagai bukti HEAL.
 
 Acceptance criteria:
 
-- Rerun memakai target Playwright test file yang sudah dipatch.
-- Rerun memakai target scenario yang sama.
-- Rerun mencapai `Payment Success`.
-- Patch hanya ditandai safe jika validation, patch application, dan rerun passed.
+- Rerun menggunakan candidate selector dan scenario yang sama.
+- Rerun harus mencapai Payment Success untuk ditandai passed.
+- Patch hanya ditandai safe jika rerun passed.
 
-### FR-011 Patch Application and Preview
+### FR-011 Patch Preview
 
-Untuk verdict `HEAL`, SpecHeal harus menerapkan patch locator ke target Playwright test file secara controlled dan menampilkan applied patch preview.
+Untuk verdict HEAL, SpecHeal harus menampilkan patch preview yang actionable.
 
 Acceptance criteria:
 
-- Patch mencakup target file.
-- Patch mencakup old line.
-- Patch mencakup new line.
-- Patch mencakup explanation.
-- Patch hanya mengubah locator test yang relevan.
+- Patch mencakup: target file, baris lama, baris baru, dan penjelasan perubahan.
 - Patch tidak auto-commit dan tidak auto-merge.
+- Patch ditampilkan di dashboard dan tersimpan di PostgreSQL.
 
-### FR-012 Jira Publishing
+### FR-012 Jira Issue Publishing
 
-SpecHeal harus membuat Jira issue secara live untuk recovery result yang membutuhkan action.
+SpecHeal harus membuat Jira issue secara live untuk setiap recovery result yang membutuhkan action.
 
 Acceptance criteria:
 
-- Membaca Jira credential dari server-side environment.
-- Membuat Jira Task untuk `HEAL`.
-- Membuat Jira Bug untuk `PRODUCT BUG`.
-- Membuat Jira Task untuk `SPEC OUTDATED` jika terjadi.
-- Jira payload berisi summary, description, issue type, labels, AI verdict, evidence, OpenSpec reference, dan proof.
-- Dashboard menampilkan publish status.
-- Dashboard menampilkan issue key dan issue URL jika berhasil.
-- Error Jira ditampilkan jujur jika publish gagal.
-- Run tetap tersimpan meskipun Jira publish gagal.
+- Jira Task dibuat untuk verdict HEAL.
+- Jira Bug dibuat untuk verdict PRODUCT BUG.
+- Jira Task dibuat untuk verdict SPEC OUTDATED.
+- Jira Task dibuat untuk verdict RUN_ERROR — untuk investigasi kegagalan operasional.
+- Payload berisi: summary, description (ADF), issue type, labels, verdict, evidence, OpenSpec reference, proof.
+- Dashboard menampilkan issue key dan URL jika berhasil, atau error state jika gagal.
+- Run tetap tersimpan di PostgreSQL meskipun Jira publish gagal.
 
-Placeholder konfigurasi:
+### FR-013 PostgreSQL Persistence
+
+SpecHeal harus menyimpan seluruh run data ke PostgreSQL.
+
+Acceptance criteria:
+
+- Menyimpan: run metadata, verdict, reason, AI trace, evidence summary, patch, validation result, Jira result.
+- Menyediakan endpoint recent runs untuk dashboard.
+- Menyediakan endpoint full report by run ID.
+
+---
+
+## 14. Integration Requirements
+
+### 14.1 OpenAI
+
+OpenAI adalah core verdict engine. Prompt harus menyertakan konteks teknis yang cukup untuk menghasilkan verdict yang dapat dipercaya.
+
+Komponen prompt wajib:
+
+- test name dan step name,
+- failed selector dan Playwright error,
+- visible evidence dan ranked candidates,
+- OpenSpec clause yang relevan,
+- expected output schema (verdict, reason, confidence, candidate selector, patch/bug report).
+
+Konfigurasi:
+
+- Model dikonfigurasi via environment variable `OPENAI_MODEL`.
+- API key via `OPENAI_API_KEY` (server-side only).
+
+### 14.2 Jira
+
+Jira digunakan sebagai workflow output — bukan hanya notifikasi, tapi issue yang actionable.
+
+| Verdict | Issue Type | Action |
+| --- | --- | --- |
+| `HEAL` | Task | Review dan apply patch locator ke test file |
+| `PRODUCT BUG` | Bug | Investigasi dan fix product regression |
+| `SPEC OUTDATED` | Task | Update test atau spec mapping |
+| `RUN_ERROR` | Task | Investigasi kegagalan operasional SpecHeal runtime |
+| `NO_HEAL_NEEDED` | — | Tidak wajib membuat issue |
+
+Variabel konfigurasi Jira:
 
 ```env
 JIRA_SITE_URL=https://<team>.atlassian.net
-JIRA_USER_EMAIL=<email>
-JIRA_API_TOKEN=<token>
-JIRA_PROJECT_KEY=<project-key>
+JIRA_EMAIL=<email akun Jira>
+JIRA_API_TOKEN=<API token dari Atlassian>
+JIRA_PROJECT_KEY=<project key target>
 JIRA_TASK_ISSUE_TYPE=Task
 JIRA_BUG_ISSUE_TYPE=Bug
 ```
 
-### FR-013 PostgreSQL Persistence
+### 14.3 PostgreSQL
 
-SpecHeal harus menyimpan run dan artifact penting ke PostgreSQL.
+PostgreSQL menyimpan seluruh artifact recovery untuk audit trail dan reporting:
 
-Acceptance criteria:
+- run history dengan metadata lengkap,
+- AI trace: prompt, response, token usage, duration, estimated cost,
+- evidence: screenshot reference (base64), DOM, candidates,
+- patch preview, validation result, dan rerun result,
+- Jira publish result: status, issue key, issue URL, error.
 
-- Menyimpan run metadata.
-- Menyimpan verdict dan reason.
-- Menyimpan AI trace.
-- Menyimpan evidence summary.
-- Menyimpan applied patch preview.
-- Menyimpan validation dan rerun result.
-- Menyimpan Jira publish result jika run membutuhkan Jira action.
-- Menyediakan recent runs.
-- Menyediakan full report by run ID.
+### 14.4 Kubernetes
 
-### FR-014 Report Timeline
+- Dashboard/API app sebagai container image.
+- Playwright runtime dengan browser dependencies.
+- PostgreSQL sebagai StatefulSet atau managed service.
+- Secret untuk OpenAI key, Jira token, dan database URL.
+- Service/Ingress untuk membuka dashboard ke publik.
 
-Dashboard harus menampilkan run sebagai timeline.
+---
 
-Acceptance criteria:
+## 15. Data Model Konseptual
 
-Timeline minimal berisi:
-
-1. Playwright test result.
-2. Failure evidence.
-3. OpenSpec clause.
-4. OpenAI verdict.
-5. Healing proof atau bug decision.
-6. Jira publish result jika applicable, atau status report-only untuk healthy run.
-
-### FR-015 Full Report
-
-SpecHeal harus menyediakan halaman full report untuk setiap run.
-
-Acceptance criteria:
-
-- Full report dapat dibuka dari dashboard.
-- Full report menampilkan run overview.
-- Full report menampilkan evidence screenshot jika ada.
-- Full report menampilkan OpenSpec clause.
-- Full report menampilkan AI trace.
-- Full report menampilkan validation/rerun proof.
-- Full report menampilkan Jira issue result jika applicable.
-
-### FR-016 Kubernetes Deployment
-
-Semua runtime MVP harus dapat dideploy ke Kubernetes di VPS.
-
-Acceptance criteria:
-
-- App tersedia sebagai container image.
-- Playwright dependencies tersedia di runtime.
-- PostgreSQL tersedia dan dapat diakses dari app.
-- Secret digunakan untuk OpenAI, Jira, dan database.
-- Service/Ingress membuka dashboard.
-- Deployment dapat direstart tanpa kehilangan konfigurasi.
-
-## 13. Integration Requirements
-
-### 13.1 OpenAI
-
-OpenAI adalah core innovation path.
-
-Prompt harus menyertakan:
-
-- test name,
-- step name,
-- failed selector,
-- Playwright error,
-- visible evidence,
-- ranked candidates,
-- OpenSpec clause,
-- expected output schema.
-
-Response minimal:
-
-- verdict,
-- reason,
-- confidence,
-- candidate selector,
-- applied patch preview jika `HEAL`,
-- bug/task report jika bukan `HEAL`.
-
-### 13.2 Jira
-
-Jira digunakan sebagai workflow output.
-
-API:
-
-```text
-POST /rest/api/3/issue
-```
-
-Auth:
-
-```text
-Atlassian email + API token
-```
-
-Description format:
-
-```text
-Atlassian Document Format
-```
-
-Issue mapping:
-
-| Verdict | Issue Type | Action |
-| --- | --- | --- |
-| `HEAL` | Task | Review patch locator |
-| `PRODUCT BUG` | Bug | Fix product regression |
-| `SPEC OUTDATED` | Task | Update test/spec mapping |
-| `NO_HEAL_NEEDED` | Tidak wajib | No action |
-
-### 13.3 PostgreSQL
-
-PostgreSQL menyimpan:
-
-- run history,
-- AI trace,
-- evidence,
-- screenshot evidence sebagai base64,
-- applied patch preview,
-- validation result,
-- rerun result,
-- Jira publish result jika applicable.
-
-### 13.4 Kubernetes
-
-Kubernetes menjadi target deployment semua runtime component:
-
-- satu app container untuk dashboard/API, in-process Playwright runtime, OpenAI client, dan Jira publisher,
-- PostgreSQL,
-- service/ingress,
-- secrets.
-
-## 14. Data Model Konseptual
-
-### 14.1 Run
+### 15.1 Run
 
 - `id`
 - `projectId`
 - `scenarioId`
-- `status`
-- `verdict`
+- `scenarioState`
+- `status` — `pending | running | completed | failed`
+- `verdict` — `NO_HEAL_NEEDED | HEAL | PRODUCT BUG | SPEC OUTDATED | RUN_ERROR`
 - `reason`
 - `confidence`
+- `failedStage`
+- `baselineSelector`
+- `candidateSelector`
+- `testFilePath`
+- `openSpecPath`
+- `openSpecClause`
 - `createdAt`
 - `updatedAt`
 
-### 14.2 Evidence
+### 15.2 Evidence
 
+- `runId`
 - `error`
-- `screenshot`
+- `screenshot` (base64)
 - `failedSelector`
 - `targetUrl`
 - `rawDomLength`
@@ -708,9 +725,9 @@ Kubernetes menjadi target deployment semua runtime component:
 - `visibleEvidence`
 - `candidates`
 
-### 14.3 AI Trace
+### 15.3 AI Trace
 
-- `mode`
+- `runId`
 - `model`
 - `systemPrompt`
 - `userPrompt`
@@ -718,17 +735,36 @@ Kubernetes menjadi target deployment semua runtime component:
 - `parsedResponse`
 - `usage`
 - `estimatedCost`
+- `errorCode`
+- `errorMessage`
 - `durationMs`
 
-### 14.4 Validation Result
+### 15.4 Validation Result
 
+- `runId`
 - `selector`
 - `passed`
 - `elementCount`
 - `reason`
 
-### 14.5 Jira Publish Result
+### 15.5 Patch Preview
 
+- `runId`
+- `targetFile`
+- `oldLine`
+- `newLine`
+- `explanation`
+
+### 15.6 Rerun Result
+
+- `runId`
+- `passed`
+- `error`
+- `durationMs`
+
+### 15.7 Jira Publish Result
+
+- `runId`
 - `status`
 - `issueKey`
 - `issueUrl`
@@ -737,20 +773,18 @@ Kubernetes menjadi target deployment semua runtime component:
 - `error`
 - `createdAt`
 
-## 15. UX Requirements
+---
 
-SpecHeal harus terasa seperti cockpit kerja engineering.
+## 16. UX Requirements
+
+SpecHeal harus terasa seperti cockpit kerja engineering — bukan landing page, bukan chatbot, bukan form kosong.
 
 Prinsip:
 
 - first screen langsung menunjukkan produk, project, dan action,
-- bukan landing page marketing,
-- bukan chatbot,
-- bukan form kosong,
-- scenario picker mudah dipahami,
-- verdict sangat jelas,
-- evidence ringkas di permukaan,
-- detail audit tersedia di drawer/full report,
+- scenario picker mudah dipahami tanpa membaca instruksi,
+- verdict sangat jelas dengan visual differentiation yang kuat (warna, ikon, label),
+- evidence ringkas di permukaan, detail audit tersedia di drawer/full report,
 - OpenSpec tampil sebagai locked source of truth,
 - Jira status tampil sebagai final workflow step ketika run membutuhkan action.
 
@@ -763,40 +797,45 @@ Primary layout:
 - trace drawer: prompt, raw output, validation details,
 - full report page: audit lengkap.
 
-## 16. Non-Functional Requirements
+---
 
-### 16.1 Reliability
+## 17. Non-Functional Requirements
 
-- Failed OpenAI call tidak boleh membuat UI blank.
-- Failed Jira publish tidak boleh menghapus report.
-- Run status harus jelas: pending, running, completed, failed.
+### 17.1 Reliability
 
-### 16.2 Security
+- Failed OpenAI call tidak boleh membuat UI blank — harus ada error state yang jelas.
+- Failed Jira publish tidak boleh menghapus report — run tetap tersimpan.
+- Run status harus selalu terdefinisi: pending, running, completed, atau failed.
+- Dashboard harus dapat di-reload tanpa kehilangan data run sebelumnya.
 
-- OpenAI key, Jira token, dan database URL hanya tersedia server-side.
-- Secret disimpan sebagai environment/Kubernetes Secret.
-- Token tidak boleh muncul di log client.
-- DOM evidence harus masking sensitive values.
+### 17.2 Security
 
-### 16.3 Observability
+- OpenAI API key, Jira token, dan database URL hanya tersedia server-side.
+- Secret disimpan sebagai environment variable atau Kubernetes Secret — tidak di-hardcode.
+- Token tidak boleh muncul di log client atau response API publik.
+- DOM evidence harus masking sensitive values sebelum dikirim ke OpenAI atau disimpan.
 
-- Run menyimpan timestamps.
-- Error state disimpan dan ditampilkan.
-- AI duration, token usage, dan estimated cost ditampilkan jika tersedia.
+### 17.3 Performance
 
-### 16.4 Performance
+- Dashboard initial load: < 3 detik pada koneksi standar.
+- Polling run status: interval cukup cepat untuk demo (disarankan < 3 detik per poll).
+- Long-running operation (Playwright, OpenAI, Jira): harus memiliki loading state yang terlihat.
 
-- Dashboard initial load harus ringan.
-- Polling run status harus cukup cepat untuk demo.
-- Long-running Playwright/OpenAI/Jira operation harus punya loading state.
+### 17.4 Observability
 
-### 16.5 Usability
+- Setiap run menyimpan timestamps: `createdAt`, `updatedAt`.
+- Error state disimpan di PostgreSQL dan ditampilkan di dashboard.
+- AI duration, token usage, dan estimated cost ditampilkan di AI trace jika tersedia.
 
-- Judge dapat menjalankan demo tanpa membaca instruksi panjang.
-- Developer dapat membuka full report untuk audit teknis.
-- Mentor dapat melihat end-to-end architecture dari behavior produk.
+### 17.5 Usability
 
-## 17. Success Metrics
+- QA Engineer dapat menjalankan scenario tanpa membaca instruksi panjang — UI harus self-explanatory.
+- Verdict harus terlihat jelas dengan visual differentiation yang kuat (warna, ikon, label).
+- Developer dapat membuka full report untuk audit teknis tanpa navigasi lebih dari 2 langkah.
+
+---
+
+## 18. Success Metrics
 
 MVP dianggap berhasil jika:
 
@@ -813,105 +852,88 @@ MVP dianggap berhasil jika:
 11. Full report dapat dibuka.
 12. Error state OpenAI/Jira ditangani dengan jujur.
 
-## 18. Release Criteria
+---
+
+## 19. Release Criteria
 
 MVP siap demo jika:
 
 - semua environment variable wajib tersedia,
-- dashboard dapat diakses publik/oleh judge,
+- dashboard dapat diakses publik,
 - OpenAI call berhasil minimal pada Locator Drift dan Product Bug,
 - Jira issue berhasil dibuat dari dashboard,
 - PostgreSQL menyimpan run,
 - Kubernetes deployment stabil,
-- demo script dapat dilakukan dalam 5 menit.
+- demo dapat dilakukan dalam 5 menit.
 
-## 19. Demo Script
-
-Opening:
-
-```text
-Automation testing mempercepat regression testing, tapi UI test failure tidak selalu berarti produk rusak. Kalau AI self-healing asal membuat test pass, kita bisa mendapat false green: test hijau, requirement produk dilanggar.
-```
-
-Locator Drift:
-
-```text
-Di skenario ini selector gagal, tapi payment behavior masih sesuai OpenSpec. SpecHeal meminta OpenAI memberi verdict, memvalidasi candidate di browser, menerapkan patch ke test file, melakukan rerun, lalu membuat Jira Task untuk review patch.
-```
-
-Product Bug:
-
-```text
-Di skenario ini payment action benar-benar tidak tersedia. Karena OpenSpec mewajibkan payment completion, SpecHeal tidak membuat patch. Output yang benar adalah Jira Bug.
-```
-
-Closing:
-
-```text
-SpecHeal bukan sekadar self-healing. SpecHeal adalah safe recovery layer: AI proposes, OpenSpec guards, Browser validates, Jira tracks.
-```
+---
 
 ## 20. Risks and Mitigations
 
-| Risiko | Dampak | Mitigasi |
-| --- | --- | --- |
-| OpenAI API gagal | Verdict tidak tersedia | Tampilkan error jujur, siapkan retry, pastikan key valid |
-| Jira credential belum siap | Issue tidak terbuat | Gunakan placeholder, buat config health check, validasi project key |
-| Jira issue type berbeda | API create issue gagal | Gunakan minimal fields dan configurable issue type |
-| Playwright sulit jalan di container | Demo gagal | Pakai container base image dengan browser dependencies |
-| Scope melebar | MVP tidak selesai | Fokus pada Locator Drift dan Product Bug |
-| AI verdict salah | Rekomendasi keliru | Wajib validation, rerun proof, dan trace |
-| OpenSpec tidak jelas | Guardrail lemah | Tulis OpenSpec behavior-first dan selector-agnostic |
+| Risiko | Dampak | Prob. | Mitigasi |
+| --- | --- | --- | --- |
+| OpenAI API gagal saat demo | Tinggi | Rendah | Tampilkan error jujur + retry button. Siapkan API key cadangan. Validasi key sebelum demo. |
+| Jira credential belum dikonfigurasi | Sedang | Sedang | Buat config health check di dashboard. Validasi project key saat startup. Siapkan akun Jira demo. |
+| Jira issue type berbeda dari konfigurasi | Sedang | Sedang | Gunakan configurable issue type via env variable. Test create issue sehari sebelum demo. |
+| Playwright gagal jalan di container | Tinggi | Sedang | Gunakan base image resmi Playwright dengan browser deps. Test di environment yang sama dengan deployment. |
+| Scope melebar saat development | Tinggi | Tinggi | Hard-scope ke Locator Drift dan Product Bug. Fitur lain masuk Future Roadmap, bukan blocker. |
+| AI verdict tidak akurat | Sedang | Rendah | Wajib ada browser validation dan rerun proof. Verdict AI tidak final tanpa bukti. |
+| OpenSpec terlalu ambigu | Tinggi | Sedang | Tulis OpenSpec behavior-first, selector-agnostic. Review sebelum demo dengan contoh test case. |
 
-## 21. Dependencies and Assumptions
+---
 
-Dependencies:
+## 21. Dependencies
 
-- OpenAI API key.
-- Jira Cloud site `https://specheal.atlassian.net`.
-- Jira project key `SH`.
-- Jira API token.
-- PostgreSQL.
-- Kubernetes VPS dari penyelenggara.
-- Network egress dari cluster ke OpenAI dan Atlassian.
+- OpenAI API key yang valid dan aktif.
+- Jira Cloud site dengan project key yang sudah dibuat.
+- Jira API token dengan permission create issue.
+- Jira project memiliki issue type Task dan Bug, atau nama issue type dikonfigurasi via environment variable.
+- PostgreSQL instance (managed atau self-hosted).
+- Kubernetes VPS dari penyelenggara hackathon dengan network egress ke OpenAI dan Atlassian.
 
-Assumptions:
+---
 
-- Jira project punya issue type `Task` dan `Bug`, atau nama issue type dapat dikonfigurasi.
-- Judge dapat mengakses dashboard via URL deployment.
-- Demo memakai seeded scenario agar run deterministic dan mudah dinilai.
-- OpenSpec ditulis cukup eksplisit untuk membedakan safe heal dan product bug.
-- Model OpenAI MVP memakai `gpt-4o-mini`.
-- Screenshot evidence MVP disimpan sebagai base64 di PostgreSQL.
+## 22. Future Roadmap
 
-## 22. Open Questions
+Setelah MVP hackathon selesai dan terbukti, berikut prioritas pengembangan lanjutan:
 
-- Domain/Ingress Kubernetes dari penyelenggara seperti apa?
-- Jira permission dan issue type `Task`/`Bug` perlu divalidasi dengan API setelah credential aman dan di-rotate jika pernah terpapar.
+**Short-Term (Post-Hackathon)**
 
-## 23. Future Roadmap
+- Demo penuh untuk SPEC OUTDATED dengan scenario nyata.
+- Screenshot attachment langsung ke Jira issue.
+- CI integration untuk membaca failed test run dari pipeline nyata (bukan seeded).
 
-Setelah MVP:
+**Medium-Term**
 
-- demo penuh untuk `SPEC OUTDATED`,
-- GitHub PR patch suggestion,
-- CI integration untuk membaca failed test run nyata,
-- screenshot attachment ke Jira,
-- multi-project OpenSpec mapping,
-- support Cypress/Selenium,
-- trend dashboard untuk selector drift,
-- approval policy untuk auto-PR.
+- GitHub PR patch suggestion — bukan hanya preview, tapi bisa buka PR langsung.
+- Multi-project OpenSpec mapping (lebih dari satu codebase).
+- Support Cypress dan Selenium sebagai alternatif Playwright.
+- Trend dashboard: visualisasi selector drift over time per project.
 
-## 24. Glossary
+**Long-Term**
 
-| Istilah | Makna |
+- Approval policy engine untuk auto-PR dengan guardrail team-level.
+- Multi-tenant SaaS dengan workspace isolation per tim.
+- Enterprise analytics: MTTR dari CI failure, false-green rate, heal success rate.
+
+---
+
+## 23. Glossary
+
+| Istilah | Definisi |
 | --- | --- |
-| OpenSpec | Spesifikasi behavior yang menjadi source of truth |
-| Playwright | Framework browser automation test |
-| Selector drift | Selector test berubah/hilang, tetapi behavior produk masih benar |
-| False green | Test pass tetapi behavior produk sebenarnya salah |
-| HEAL | Verdict bahwa test aman diperbaiki dengan patch locator |
-| PRODUCT BUG | Verdict bahwa produk melanggar requirement |
-| SPEC OUTDATED | Verdict bahwa test/spec mapping perlu diperbarui |
-| Rerun proof | Bukti test berhasil setelah patch locator diterapkan ke test file |
-| Jira publisher | Komponen yang membuat issue Jira dari report |
+| OpenSpec | Spesifikasi behavior produk yang menjadi source of truth untuk semua verdict. Ditulis behavior-first, selector-agnostic. |
+| Playwright | Framework browser automation test yang digunakan sebagai runtime execution SpecHeal. |
+| Selector drift | Kondisi di mana selector test berubah atau hilang, namun behavior produk yang sebenarnya masih benar. |
+| False green | Kondisi di mana test pass namun behavior produk sebenarnya melanggar requirement — akibat self-healing yang tidak tervalidasi. |
+| HEAL | Verdict bahwa test gagal karena selector drift dan aman diperbaiki dengan patch locator yang tervalidasi. |
+| PRODUCT BUG | Verdict bahwa produk melanggar requirement OpenSpec — tidak ada recovery yang aman, output adalah Jira Bug. |
+| SPEC OUTDATED | Verdict bahwa test atau spec mapping perlu diperbarui karena flow produk berubah secara intentional. |
+| NO_HEAL_NEEDED | Verdict bahwa test berjalan sukses dan tidak membutuhkan recovery. |
+| RUN_ERROR | Terminal state operasional ketika run gagal sebelum verdict recovery dihasilkan — akibat Playwright crash, OpenAI tidak terkonfigurasi, atau kegagalan sistem lainnya. Output: Jira Task untuk investigasi. |
+| Evidence capture | Proses pengambilan screenshot, DOM, error, dan candidates saat test gagal. |
+| Candidate selector | Element DOM yang diusulkan AI sebagai pengganti selector yang gagal. |
+| Rerun proof | Bukti bahwa test berhasil dijalankan ulang dengan candidate selector baru dan mencapai expected result. |
+| AI trace | Log lengkap interaksi dengan OpenAI: prompt, raw response, parsed response, token usage, duration. |
+| Jira publisher | Komponen SpecHeal yang bertanggung jawab membuat dan mempublikasikan Jira issue dari recovery report. |
+| ShopFlow Checkout | Mini checkout app yang menjadi seeded system under test untuk demo SpecHeal. |
