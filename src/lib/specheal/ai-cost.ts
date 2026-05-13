@@ -22,7 +22,7 @@ export type AiCostBreakdown = {
 };
 
 const PRICING_SOURCE =
-  "OpenAI API pricing for gpt-4o-mini text tokens, checked 2026-05-12";
+  "OpenAI API pricing for gpt-4o-mini text tokens, checked 2026-05-13";
 
 const MODEL_PRICING: Record<
   string,
@@ -50,18 +50,27 @@ export function estimateAiCost(
     return undefined;
   }
 
-  const cachedInputTokens = usage.cachedPromptTokens ?? 0;
-  const billableInputTokens = Math.max(usage.promptTokens - cachedInputTokens, 0);
-  const outputTokens = usage.completionTokens;
-  const inputCostUsd = costFor(billableInputTokens, pricing.inputPerMillion);
-  const cachedInputCostUsd = costFor(cachedInputTokens, pricing.cachedInputPerMillion);
-  const outputCostUsd = costFor(outputTokens, pricing.outputPerMillion);
+  const promptTokens = normalizeTokenCount(usage.promptTokens);
+  const cachedInputTokens = Math.min(
+    normalizeTokenCount(usage.cachedPromptTokens),
+    promptTokens
+  );
+  const billableInputTokens = promptTokens - cachedInputTokens;
+  const outputTokens = normalizeTokenCount(usage.completionTokens);
+  const rawInputCostUsd = costFor(billableInputTokens, pricing.inputPerMillion);
+  const rawCachedInputCostUsd = costFor(
+    cachedInputTokens,
+    pricing.cachedInputPerMillion
+  );
+  const rawOutputCostUsd = costFor(outputTokens, pricing.outputPerMillion);
 
   return {
-    estimatedCostUsd: roundCost(inputCostUsd + cachedInputCostUsd + outputCostUsd),
-    inputCostUsd,
-    cachedInputCostUsd,
-    outputCostUsd,
+    estimatedCostUsd: roundCost(
+      rawInputCostUsd + rawCachedInputCostUsd + rawOutputCostUsd
+    ),
+    inputCostUsd: roundCost(rawInputCostUsd),
+    cachedInputCostUsd: roundCost(rawCachedInputCostUsd),
+    outputCostUsd: roundCost(rawOutputCostUsd),
     inputTokens: billableInputTokens,
     cachedInputTokens,
     outputTokens,
@@ -72,7 +81,15 @@ export function estimateAiCost(
 }
 
 function costFor(tokens: number, perMillion: number) {
-  return roundCost((tokens / 1_000_000) * perMillion);
+  return (tokens / 1_000_000) * perMillion;
+}
+
+function normalizeTokenCount(value: number | undefined) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return 0;
+  }
+
+  return Math.max(Math.trunc(value), 0);
 }
 
 function roundCost(value: number) {

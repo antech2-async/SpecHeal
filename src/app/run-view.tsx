@@ -78,7 +78,7 @@ type RunReportViewProps = {
 type ReportDetailPanel = "evidence" | "patch" | "jira";
 
 const TOKEN_PRICING_SOURCE =
-  "OpenAI API pricing for gpt-4o-mini text tokens, checked 2026-05-12";
+  "OpenAI API pricing for gpt-4o-mini text tokens, checked 2026-05-13";
 
 export function RunReportView({ run, artifacts, mode }: RunReportViewProps) {
   const report = run.report;
