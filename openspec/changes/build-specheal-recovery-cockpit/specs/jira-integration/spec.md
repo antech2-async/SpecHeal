@@ -44,14 +44,14 @@ The system SHALL attempt to publish actionable terminal run results to Jira auto
 - **THEN** the system automatically attempts to create a Jira Task for updating test or spec mapping
 
 #### Scenario: Operational error run is published
-- **WHEN** a run reaches terminal error status before a recovery verdict is available
+- **WHEN** a run reaches terminal verdict `RUN_ERROR` before a recovery verdict is available
 - **THEN** the system automatically attempts to create a Jira Task for investigating the SpecHeal run failure
 
 ### Requirement: Jira issue type mapping
 The system SHALL map SpecHeal terminal results to Jira issue types.
 
 #### Scenario: Task issue type is used for non-bug actions
-- **WHEN** the terminal result is `HEAL`, `SPEC OUTDATED`, or operational error
+- **WHEN** the terminal result is `HEAL`, `SPEC OUTDATED`, or `RUN_ERROR`
 - **THEN** the Jira issue uses the configured Task issue type
 
 #### Scenario: Bug issue type is used for product regression

@@ -8,6 +8,12 @@ The system SHALL retain audit metadata describing how DOM evidence was cleaned b
 - **THEN** the evidence includes raw DOM length, cleaned DOM length, cleaned DOM excerpt, and a summary of removed DOM noise
 - **AND** sensitive values are masked before the cleaned DOM is included in prompts or reports
 
+#### Scenario: Removed DOM noise is explicit
+- **WHEN** DOM cleaning prepares evidence for OpenAI or report display
+- **THEN** the cleaner removes doctype, head, script, style, meta, link, noscript, comments, SVG, iframe, canvas, template, and HTML/body shell noise
+- **AND** the cleaner removes presentation or framework attributes such as class, inline style, Next.js data attributes, and React root attributes
+- **AND** the DOM noise summary records removed tags, removed attributes, input value masking, and prompt-budget truncation when they occur
+
 #### Scenario: DOM is too large for prompt budget
 - **WHEN** cleaned DOM exceeds the configured prompt budget
 - **THEN** the cleaned DOM is truncated with an explicit truncation marker

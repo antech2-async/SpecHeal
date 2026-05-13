@@ -68,7 +68,8 @@ The system SHALL clean DOM evidence and mask sensitive values before sending evi
 
 #### Scenario: Framework noise is removed
 - **WHEN** the system prepares DOM evidence for AI analysis
-- **THEN** head, script, style, meta, link, noscript, comments, SVG, iframe, canvas, and template noise are removed
+- **THEN** doctype, head, script, style, meta, link, noscript, comments, SVG, iframe, canvas, template, and HTML/body shell noise are removed
+- **AND** presentation or framework attributes such as class, inline style, Next.js data attributes, and React root attributes are removed from the cleaned DOM
 
 #### Scenario: Sensitive values are masked
 - **WHEN** DOM evidence contains input values or email-like text
@@ -76,7 +77,8 @@ The system SHALL clean DOM evidence and mask sensitive values before sending evi
 
 #### Scenario: DOM audit metadata is retained
 - **WHEN** DOM evidence is cleaned
-- **THEN** raw DOM length and cleaned DOM length are recorded in the run report
+- **THEN** raw DOM length, cleaned DOM length, cleaned DOM excerpt, and removed DOM noise summary are recorded in the run report
+- **AND** the removed DOM noise summary includes removed tags and removed attributes when applicable
 
 ### Requirement: Candidate extraction and ranking
 The system SHALL extract and rank valid candidate elements for recovery.
@@ -121,8 +123,16 @@ The system SHALL use live OpenAI calls to produce recovery verdicts for failed r
 - **THEN** the run records a clear AI failure state instead of silently substituting a deterministic or precomputed verdict
 - **AND** the report shows the recovery analysis did not produce a trusted AI verdict
 
-### Requirement: Verdict set
-The system SHALL support `HEAL`, `PRODUCT BUG`, `SPEC OUTDATED`, and `NO_HEAL_NEEDED` as recovery verdicts.
+### Requirement: Run verdict set
+The system SHALL support `NO_HEAL_NEEDED`, `HEAL`, `PRODUCT BUG`, `SPEC OUTDATED`, and `RUN_ERROR` as persisted terminal run verdicts.
+
+#### Scenario: OpenAI recovery verdicts are bounded
+- **WHEN** a failed run reaches live OpenAI recovery analysis
+- **THEN** OpenAI can return only `HEAL`, `PRODUCT BUG`, or `SPEC OUTDATED` as recovery verdicts
+
+#### Scenario: Orchestrator terminal verdicts are explicit
+- **WHEN** baseline execution succeeds or an operational error prevents trusted recovery analysis
+- **THEN** the orchestrator can set `NO_HEAL_NEEDED` or `RUN_ERROR` as the terminal run verdict without presenting it as an OpenAI recovery verdict
 
 #### Scenario: HEAL verdict
 - **WHEN** evidence shows locator drift while OpenSpec behavior remains satisfied
@@ -262,7 +272,7 @@ The system SHALL record operational errors as terminal run results when a recove
 
 #### Scenario: Runtime error is recorded
 - **WHEN** Playwright, OpenAI, persistence, or orchestration fails in a way that stops the run
-- **THEN** the run records an error status, error message, and failed stage
+- **THEN** the run records verdict `RUN_ERROR`, error status, error message, and failed stage
 
 #### Scenario: Runtime error remains publishable
 - **WHEN** a run ends in an operational error

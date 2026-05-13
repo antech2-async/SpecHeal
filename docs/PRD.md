@@ -296,7 +296,9 @@ ShopFlow memiliki tiga state yang di-seed untuk scenario:
 
 ---
 
-## 10. Supported Verdicts
+## 10. Supported Terminal Results
+
+Di codebase, `run.verdict` menyimpan terminal result yang ditampilkan di dashboard dan disimpan ke PostgreSQL. Live OpenAI hanya menghasilkan recovery verdict untuk failed run: `HEAL`, `PRODUCT BUG`, atau `SPEC OUTDATED`. `NO_HEAL_NEEDED` dan `RUN_ERROR` ditetapkan oleh orchestrator SpecHeal.
 
 ### 10.1 NO_HEAL_NEEDED
 
@@ -355,7 +357,7 @@ Catatan: `SPEC OUTDATED` didukung dalam desain dan schema. Demo utama MVP fokus 
 
 Makna:
 
-- run gagal karena kegagalan operasional sebelum verdict recovery dihasilkan,
+- run gagal karena kegagalan operasional sebelum recovery verdict dari OpenAI dihasilkan,
 - contoh: Playwright crash, OpenAI tidak terkonfigurasi, atau database tidak tersedia,
 - bukan kesalahan produk, bukan locator drift — ini kegagalan sistem SpecHeal sendiri.
 
@@ -629,7 +631,7 @@ Acceptance criteria:
 - Jira Task dibuat untuk verdict HEAL.
 - Jira Bug dibuat untuk verdict PRODUCT BUG.
 - Jira Task dibuat untuk verdict SPEC OUTDATED.
-- Jira Task dibuat untuk verdict RUN_ERROR — untuk investigasi kegagalan operasional.
+- Jira Task dibuat untuk terminal result RUN_ERROR — untuk investigasi kegagalan operasional.
 - Payload mencakup: summary, description (ADF), issue type, labels, verdict, evidence, OpenSpec reference, dan proof.
 - Dashboard menampilkan issue key dan URL jika berhasil, atau error state jika gagal.
 - Run tetap tersimpan di PostgreSQL meskipun Jira publish gagal.
@@ -713,7 +715,7 @@ Konfigurasi:
 
 ```env
 JIRA_SITE_URL=https://<team>.atlassian.net
-JIRA_EMAIL=<email akun Jira>
+JIRA_USER_EMAIL=<email akun Jira>
 JIRA_API_TOKEN=<API token dari Atlassian>
 JIRA_PROJECT_KEY=<project key target>
 JIRA_TASK_ISSUE_TYPE=Task
