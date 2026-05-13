@@ -48,6 +48,55 @@ body {
   }
 }
 
+@keyframes trace-scan {
+  0%,
+  100% {
+    opacity: 0.28;
+  }
+
+  50% {
+    opacity: 0.92;
+  }
+}
+
+@keyframes trace-node-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.06);
+  }
+}
+
+@keyframes trace-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(82, 220, 235, 0.38);
+  }
+
+  70% {
+    box-shadow: 0 0 0 12px rgba(82, 220, 235, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(82, 220, 235, 0);
+  }
+}
+
+@keyframes trace-bars {
+  0%,
+  100% {
+    opacity: 0.38;
+    transform: scaleY(0.64);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+
 .shell {
   width: min(1120px, calc(100vw - 32px));
   min-height: 100vh;
@@ -733,6 +782,34 @@ p {
   animation: progress-slide 1.8s linear infinite;
 }
 
+.runningProgress.live {
+  position: relative;
+  height: 10px;
+  background:
+    linear-gradient(90deg, rgba(82, 220, 235, 0.08), rgba(52, 211, 153, 0.08)),
+    rgba(0, 0, 0, 0.34);
+}
+
+.runningProgress.live::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--trace-progress, 12%);
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(82, 220, 235, 0.28), rgba(52, 211, 153, 0.72));
+  box-shadow: 0 0 24px rgba(82, 220, 235, 0.28);
+  transition: width 520ms ease;
+}
+
+.runningProgress.live span {
+  position: relative;
+  width: 28%;
+  min-width: 96px;
+  transform: translateX(calc(var(--trace-progress, 12%) - 60%));
+  background: linear-gradient(90deg, transparent, rgba(244, 247, 250, 0.72), transparent);
+  animation: trace-scan 1.25s ease-in-out infinite;
+}
+
 .runningMeta {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -796,6 +873,276 @@ p {
   margin-top: 3px;
   color: var(--muted);
   font-size: 13px;
+}
+
+.liveTraceFlow {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+  padding: 0 24px 20px;
+}
+
+.traceNode {
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-height: 126px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(13, 18, 24, 0.76);
+  padding: 13px;
+  transition: border-color 180ms ease, background 180ms ease, transform 180ms ease;
+}
+
+.traceNode::after {
+  content: "";
+  position: absolute;
+  top: 29px;
+  right: -10px;
+  width: 10px;
+  height: 1px;
+  background: rgba(82, 220, 235, 0.2);
+}
+
+.traceNode:last-child::after {
+  display: none;
+}
+
+.traceNode > span {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid rgba(82, 220, 235, 0.32);
+  border-radius: 8px;
+  background: rgba(82, 220, 235, 0.06);
+  color: var(--action);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.traceNode strong,
+.traceNode p {
+  margin: 0;
+}
+
+.traceNode p {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.traceNode.completed {
+  border-color: rgba(52, 211, 153, 0.42);
+  background: rgba(52, 211, 153, 0.07);
+}
+
+.traceNode.completed > span {
+  border-color: rgba(52, 211, 153, 0.58);
+  background: rgba(52, 211, 153, 0.12);
+  color: var(--heal);
+}
+
+.traceNode.running {
+  border-color: rgba(82, 220, 235, 0.72);
+  background:
+    radial-gradient(circle at 12% 0%, rgba(82, 220, 235, 0.18), transparent 42%),
+    rgba(82, 220, 235, 0.08);
+  box-shadow: 0 0 0 1px rgba(82, 220, 235, 0.08), 0 18px 38px rgba(82, 220, 235, 0.08);
+  transform: translateY(-1px);
+}
+
+.traceNode.running > span {
+  border-color: rgba(82, 220, 235, 0.76);
+  box-shadow: 0 0 18px rgba(82, 220, 235, 0.24);
+  animation: trace-node-pulse 1.6s ease-in-out infinite;
+}
+
+.traceNode.failed {
+  border-color: rgba(255, 107, 107, 0.58);
+  background: rgba(255, 107, 107, 0.08);
+}
+
+.traceNode.failed > span {
+  border-color: rgba(255, 107, 107, 0.68);
+  color: var(--bug);
+}
+
+.liveTraceWorkbench {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(220px, 0.75fr) minmax(260px, 0.85fr);
+  gap: 12px;
+  padding: 0 24px 24px;
+}
+
+.traceFocus,
+.traceArtifactGrid,
+.liveEventLog {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(9, 14, 20, 0.78);
+  padding: 14px;
+}
+
+.traceFocus {
+  display: grid;
+  align-content: space-between;
+  gap: 18px;
+  overflow: hidden;
+  background:
+    linear-gradient(135deg, rgba(82, 220, 235, 0.1), transparent 42%),
+    rgba(9, 14, 20, 0.78);
+}
+
+.traceFocusHeader {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+
+.traceFocusHeader span:not(.tracePulse) {
+  display: block;
+  color: var(--dim);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.traceFocusHeader strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 18px;
+}
+
+.traceFocus p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.tracePulse {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--action);
+  box-shadow: 0 0 0 0 rgba(82, 220, 235, 0.42);
+  animation: trace-pulse 1.4s ease-out infinite;
+}
+
+.tracePulse.completed {
+  background: var(--heal);
+  box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.34);
+}
+
+.tracePulse.failed {
+  background: var(--bug);
+  box-shadow: 0 0 0 0 rgba(255, 107, 107, 0.34);
+}
+
+.traceSignalBars {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  height: 32px;
+  align-items: end;
+}
+
+.traceSignalBars span {
+  display: block;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(82, 220, 235, 0.86), rgba(52, 211, 153, 0.26));
+  animation: trace-bars 1.05s ease-in-out infinite;
+}
+
+.traceSignalBars span:nth-child(1) {
+  height: 34%;
+}
+
+.traceSignalBars span:nth-child(2) {
+  height: 76%;
+  animation-delay: 120ms;
+}
+
+.traceSignalBars span:nth-child(3) {
+  height: 52%;
+  animation-delay: 240ms;
+}
+
+.traceSignalBars span:nth-child(4) {
+  height: 88%;
+  animation-delay: 360ms;
+}
+
+.traceArtifactGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 9px;
+}
+
+.traceArtifactGrid div {
+  min-width: 0;
+  border: 1px solid rgba(37, 50, 66, 0.78);
+  border-radius: 8px;
+  background: rgba(18, 26, 35, 0.56);
+  padding: 10px;
+}
+
+.traceArtifactGrid span,
+.liveEvent span {
+  display: block;
+  color: var(--dim);
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.traceArtifactGrid strong {
+  display: block;
+  overflow-wrap: anywhere;
+  margin-top: 4px;
+  font-size: 13px;
+}
+
+.liveEventLog {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+
+.liveEventLog .panelActionRow {
+  margin: 0;
+}
+
+.liveEventLog .panelActionRow strong {
+  color: var(--action);
+  font-size: 12px;
+}
+
+.liveEvent {
+  display: grid;
+  gap: 3px;
+  border-left: 2px solid rgba(82, 220, 235, 0.34);
+  padding: 0 0 10px 10px;
+}
+
+.liveEvent:last-child {
+  padding-bottom: 0;
+}
+
+.liveEvent.completed {
+  border-left-color: rgba(52, 211, 153, 0.58);
+}
+
+.liveEvent.failed {
+  border-left-color: rgba(255, 107, 107, 0.7);
+}
+
+.liveEvent strong {
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  line-height: 1.35;
 }
 
 .emptyState {
@@ -2180,6 +2527,8 @@ p {
   .demoStatusBar,
   .reportHeader,
   .runningHeader,
+  .liveTraceFlow,
+  .liveTraceWorkbench,
   .workbench,
   .reportGrid,
   .storyGrid,
@@ -2217,10 +2566,31 @@ p {
     grid-template-columns: 1fr;
   }
 
+  .traceNode {
+    min-height: auto;
+  }
+
+  .traceNode::after {
+    display: none;
+  }
+
   .projectBadge,
   .verdictCard {
     min-width: 0;
     text-align: left;
+  }
+
+  .liveTraceFlow,
+  .liveTraceWorkbench,
+  .runningHeader,
+  .runningMeta {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .runningProgress {
+    margin-left: 16px;
+    margin-right: 16px;
   }
 
   .emptyState {
@@ -2269,5 +2639,14 @@ p {
 
   .traceHeader {
     display: grid;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .runningProgress span,
+  .traceNode.running > span,
+  .tracePulse,
+  .traceSignalBars span {
+    animation: none;
   }
 }

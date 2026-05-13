@@ -33,6 +33,7 @@ type MemoryStore = {
 
 declare global {
   var __spechealMemoryStore: MemoryStore | undefined;
+  var __spechealDbFallbackActive: boolean | undefined;
   var __spechealDbFallbackWarned: boolean | undefined;
 }
 
@@ -76,6 +77,10 @@ export async function createRecoveryRun(scenarioId: string) {
     )
   };
 
+  if (shouldUseMemoryStore()) {
+    return serializeRun(createMemoryRecoveryRun(values));
+  }
+
   try {
     const [run] = await getDb()
       .insert(spechealRuns)
@@ -90,32 +95,7 @@ export async function createRecoveryRun(scenarioId: string) {
 
     warnAboutMemoryStore(error);
 
-    const now = new Date();
-    const run: SpecHealRun = {
-      id: randomUUID(),
-      projectId: SHOPFLOW_PROJECT.id,
-      scenarioId: scenario.id,
-      scenarioState: scenario.runtimeState,
-      status: "pending",
-      verdict: null,
-      reason: null,
-      confidence: null,
-      failedStage: null,
-      errorMessage: null,
-      targetUrl,
-      baselineSelector: scenario.oldSelector,
-      candidateSelector: null,
-      testFilePath: scenario.patch?.file ?? "tests/shopflow-checkout.spec.ts",
-      openSpecPath: SHOPFLOW_PROJECT.targetOpenSpecPath,
-      openSpecClause,
-      report: values.report,
-      createdAt: now,
-      updatedAt: now
-    };
-
-    memoryStore().runs.set(run.id, run);
-
-    return serializeRun(run);
+    return serializeRun(createMemoryRecoveryRun(values));
   }
 }
 
@@ -138,6 +118,10 @@ export async function getRecoveryRunWithArtifacts(runId: string) {
 }
 
 export async function getRecoveryRunArtifacts(runId: string) {
+  if (shouldUseMemoryStore()) {
+    return getMemoryArtifacts(runId);
+  }
+
   try {
     const db = getDb();
     const [evidence] = await db
@@ -196,6 +180,10 @@ export async function getRecoveryRunArtifacts(runId: string) {
 }
 
 export async function findRecoveryRun(runId: string): Promise<SpecHealRun | null> {
+  if (shouldUseMemoryStore()) {
+    return memoryStore().runs.get(runId) ?? null;
+  }
+
   try {
     const [run] = await getDb()
       .select()
@@ -216,6 +204,11 @@ export async function findRecoveryRun(runId: string): Promise<SpecHealRun | null
 
 export async function listRecentRecoveryRuns(limit = RECENT_RUN_LIMIT) {
   const safeLimit = Math.min(Math.max(limit, 1), 50);
+
+  if (shouldUseMemoryStore()) {
+    return listMemoryRuns(safeLimit);
+  }
+
   try {
     const runs = await getDb()
       .select()
@@ -231,10 +224,7 @@ export async function listRecentRecoveryRuns(limit = RECENT_RUN_LIMIT) {
 
     warnAboutMemoryStore(error);
 
-    return [...memoryStore().runs.values()]
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-      .slice(0, safeLimit)
-      .map(serializeRun);
+    return listMemoryRuns(safeLimit);
   }
 }
 
@@ -243,6 +233,10 @@ export async function updateRecoveryRun(
   values: Partial<typeof spechealRuns.$inferInsert>
 ) {
   const updatedAt = new Date();
+
+  if (shouldUseMemoryStore()) {
+    return updateMemoryRun(runId, values, updatedAt);
+  }
 
   try {
     const [run] = await getDb()
@@ -265,25 +259,26 @@ export async function updateRecoveryRun(
     warnAboutMemoryStore(error);
   }
 
-  const current = memoryStore().runs.get(runId);
-
-  if (!current) {
-    return null;
-  }
-
-  const next = {
-    ...current,
-    ...values,
-    updatedAt
-  } as SpecHealRun;
-  memoryStore().runs.set(runId, next);
-
-  return serializeRun(next);
+  return updateMemoryRun(runId, values, updatedAt);
 }
 
 export async function createRunEvidence(
   values: typeof runEvidence.$inferInsert
 ) {
+  if (shouldUseMemoryStore()) {
+    return createMemoryArtifact(
+      null,
+      memoryStore().evidence,
+      values,
+      () =>
+        ({
+          id: randomUUID(),
+          createdAt: new Date(),
+          ...values
+        }) as typeof runEvidence.$inferSelect
+    );
+  }
+
   try {
     const [evidence] = await getDb().insert(runEvidence).values(values).returning();
     return evidence;
@@ -303,6 +298,20 @@ export async function createRunEvidence(
 }
 
 export async function createAiTrace(values: typeof aiTraces.$inferInsert) {
+  if (shouldUseMemoryStore()) {
+    return createMemoryArtifact(
+      null,
+      memoryStore().aiTraces,
+      values,
+      () =>
+        ({
+          id: randomUUID(),
+          createdAt: new Date(),
+          ...values
+        }) as typeof aiTraces.$inferSelect
+    );
+  }
+
   try {
     const [trace] = await getDb().insert(aiTraces).values(values).returning();
     return trace;
@@ -324,6 +333,20 @@ export async function createAiTrace(values: typeof aiTraces.$inferInsert) {
 export async function createValidationResult(
   values: typeof validationResults.$inferInsert
 ) {
+  if (shouldUseMemoryStore()) {
+    return createMemoryArtifact(
+      null,
+      memoryStore().validation,
+      values,
+      () =>
+        ({
+          id: randomUUID(),
+          createdAt: new Date(),
+          ...values
+        }) as typeof validationResults.$inferSelect
+    );
+  }
+
   try {
     const [result] = await getDb()
       .insert(validationResults)
@@ -348,6 +371,21 @@ export async function createValidationResult(
 export async function createPatchPreview(
   values: typeof patchPreviews.$inferInsert
 ) {
+  if (shouldUseMemoryStore()) {
+    return createMemoryArtifact(
+      null,
+      memoryStore().patches,
+      values,
+      () =>
+        ({
+          id: randomUUID(),
+          createdAt: new Date(),
+          applied: false,
+          ...values
+        }) as typeof patchPreviews.$inferSelect
+    );
+  }
+
   try {
     const [preview] = await getDb().insert(patchPreviews).values(values).returning();
     return preview;
@@ -370,6 +408,20 @@ export async function createPatchPreview(
 export async function createRerunResult(
   values: typeof rerunResults.$inferInsert
 ) {
+  if (shouldUseMemoryStore()) {
+    return createMemoryArtifact(
+      null,
+      memoryStore().reruns,
+      values,
+      () =>
+        ({
+          id: randomUUID(),
+          createdAt: new Date(),
+          ...values
+        }) as typeof rerunResults.$inferSelect
+    );
+  }
+
   try {
     const [result] = await getDb().insert(rerunResults).values(values).returning();
     return result;
@@ -389,6 +441,10 @@ export async function createRerunResult(
 }
 
 export async function getLatestJiraPublishResult(runId: string) {
+  if (shouldUseMemoryStore()) {
+    return latestMemory(memoryStore().jira.get(runId));
+  }
+
   try {
     const [result] = await getDb()
       .select()
@@ -411,6 +467,27 @@ export async function getLatestJiraPublishResult(runId: string) {
 export async function createJiraPublishResult(
   values: typeof jiraPublishResults.$inferInsert
 ) {
+  if (shouldUseMemoryStore()) {
+    return createMemoryArtifact(
+      null,
+      memoryStore().jira,
+      values,
+      () =>
+        ({
+          id: randomUUID(),
+          createdAt: new Date(),
+          issueKey: null,
+          issueUrl: null,
+          issueId: null,
+          errorCode: null,
+          errorMessage: null,
+          payloadSummary: null,
+          payload: null,
+          ...values
+        }) as typeof jiraPublishResults.$inferSelect
+    );
+  }
+
   try {
     const [result] = await getDb()
       .insert(jiraPublishResults)
@@ -447,6 +524,74 @@ function serializeArtifact<T extends { createdAt: Date }>(artifact: T) {
   };
 }
 
+function createMemoryRecoveryRun(values: {
+  projectId: string;
+  scenarioId: string;
+  scenarioState: SpecHealRun["scenarioState"];
+  status: SpecHealRun["status"];
+  targetUrl: string;
+  baselineSelector: string;
+  testFilePath: string;
+  openSpecPath: string;
+  openSpecClause: string;
+  report: SpecHealRun["report"];
+}) {
+  const now = new Date();
+  const run: SpecHealRun = {
+    id: randomUUID(),
+    projectId: values.projectId,
+    scenarioId: values.scenarioId,
+    scenarioState: values.scenarioState,
+    status: values.status,
+    verdict: null,
+    reason: null,
+    confidence: null,
+    failedStage: null,
+    errorMessage: null,
+    targetUrl: values.targetUrl,
+    baselineSelector: values.baselineSelector,
+    candidateSelector: null,
+    testFilePath: values.testFilePath,
+    openSpecPath: values.openSpecPath,
+    openSpecClause: values.openSpecClause,
+    report: values.report,
+    createdAt: now,
+    updatedAt: now
+  };
+
+  memoryStore().runs.set(run.id, run);
+
+  return run;
+}
+
+function updateMemoryRun(
+  runId: string,
+  values: Partial<typeof spechealRuns.$inferInsert>,
+  updatedAt: Date
+) {
+  const current = memoryStore().runs.get(runId);
+
+  if (!current) {
+    return null;
+  }
+
+  const next = {
+    ...current,
+    ...values,
+    updatedAt
+  } as SpecHealRun;
+  memoryStore().runs.set(runId, next);
+
+  return serializeRun(next);
+}
+
+function listMemoryRuns(limit: number) {
+  return [...memoryStore().runs.values()]
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    .slice(0, limit)
+    .map(serializeRun);
+}
+
 function getMemoryArtifacts(runId: string) {
   const store = memoryStore();
   const evidence = latestMemory(store.evidence.get(runId));
@@ -477,11 +622,13 @@ function createMemoryArtifact<
   values: TValues,
   create: () => TArtifact
 ) {
-  if (!isRecoverableDatabaseError(error)) {
-    throw error;
-  }
+  if (!shouldUseMemoryStore()) {
+    if (!isRecoverableDatabaseError(error)) {
+      throw error;
+    }
 
-  warnAboutMemoryStore(error);
+    warnAboutMemoryStore(error);
+  }
 
   const artifact = create();
   const current = map.get(values.runId) ?? [];
@@ -510,7 +657,13 @@ function memoryStore() {
   return globalThis.__spechealMemoryStore;
 }
 
+function shouldUseMemoryStore() {
+  return Boolean(globalThis.__spechealDbFallbackActive);
+}
+
 function warnAboutMemoryStore(error: unknown) {
+  globalThis.__spechealDbFallbackActive = true;
+
   if (globalThis.__spechealDbFallbackWarned) {
     return;
   }
@@ -524,7 +677,7 @@ function warnAboutMemoryStore(error: unknown) {
 }
 
 function isRecoverableDatabaseError(error: unknown) {
-  return /DATABASE_URL|Invalid input|ECONNREFUSED|ECONNRESET|ETIMEDOUT|ENOTFOUND|42P01|3D000|28P01|database .* does not exist|role .* does not exist/i.test(
+  return /DATABASE_URL|Invalid input|timeout|ECONNREFUSED|ECONNRESET|ETIMEDOUT|EADDRNOTAVAIL|ENOTFOUND|42P01|3D000|28P01|database .* does not exist|role .* does not exist/i.test(
     collectErrorText(error)
   );
 }

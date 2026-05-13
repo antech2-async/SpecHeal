@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import type { ShopFlowScenario } from "@/demo/shopflow";
 import { formatRunDate } from "@/lib/display";
+import type { RunTimelineEvent, TimelineStatus } from "@/lib/specheal/run-report";
 import { RunReportView, type RunArtifacts, type SerializedRun } from "./run-view";
 
 type ReadinessItem = {
@@ -31,6 +32,63 @@ const RUN_STORY_PREVIEW = [
   ["05", "Proof", "Validate candidate selectors and rerun only when HEAL is safe."],
   ["06", "Jira", "Publish actionable HEAL, bug, spec, or runtime follow-up."]
 ] as const;
+
+type TraceStepId = "playwright" | "evidence" | "openspec" | "openai" | "proof" | "jira";
+
+type LiveTraceStep = {
+  id: TraceStepId;
+  index: string;
+  title: string;
+  summary: string;
+  liveLabel: string;
+};
+
+type LiveTraceStepStatus = TimelineStatus;
+
+const LIVE_TRACE_STEPS: LiveTraceStep[] = [
+  {
+    id: "playwright",
+    index: "01",
+    title: "Playwright",
+    summary: "Run browser checkout path",
+    liveLabel: "Executing browser proof"
+  },
+  {
+    id: "evidence",
+    index: "02",
+    title: "Evidence",
+    summary: "Screenshot, text, DOM, candidates",
+    liveLabel: "Capturing failure evidence"
+  },
+  {
+    id: "openspec",
+    index: "03",
+    title: "OpenSpec",
+    summary: "Behavior guardrail check",
+    liveLabel: "Checking product requirement"
+  },
+  {
+    id: "openai",
+    index: "04",
+    title: "OpenAI",
+    summary: "Structured recovery verdict",
+    liveLabel: "Requesting AI verdict"
+  },
+  {
+    id: "proof",
+    index: "05",
+    title: "Proof",
+    summary: "Validate, patch, rerun",
+    liveLabel: "Proving safe recovery"
+  },
+  {
+    id: "jira",
+    index: "06",
+    title: "Jira",
+    summary: "Publish actionable handoff",
+    liveLabel: "Publishing follow-up"
+  }
+];
 
 const SCENARIO_OUTCOMES: Record<string, { tone: string; value: string }> = {
   "healthy-flow": { tone: "positive", value: "Report only" },
@@ -375,24 +433,29 @@ function RunningRunPanel({
   run: SerializedRun;
   selectedScenarioTitle: string;
 }) {
+  const trace = getLiveTraceState(run);
+  const progressStyle = {
+    "--trace-progress": `${trace.progress}%`
+  } as CSSProperties;
+
   return (
     <article className="runningPanel" aria-live="polite">
       <header className="runningHeader">
         <div>
           <p className="eyebrow">SpecHeal run</p>
-          <h2>Running recovery sequence</h2>
+          <h2>{trace.activeStep.liveLabel}</h2>
           <p>
-            {selectedScenarioTitle} is moving through browser execution,
-            OpenSpec guardrails, and proof capture.
+            {selectedScenarioTitle} is moving through the live recovery trace
+            from browser execution to Jira handoff.
           </p>
         </div>
         <div className="runningBadge">
           <span>{run.status}</span>
-          <strong>{run.scenarioState}</strong>
+          <strong>{trace.activeStep.title}</strong>
         </div>
       </header>
 
-      <div className="runningProgress" aria-hidden="true">
+      <div className="runningProgress live" aria-hidden="true" style={progressStyle}>
         <span />
       </div>
 
@@ -403,30 +466,231 @@ function RunningRunPanel({
         </div>
         <div>
           <span>Baseline selector</span>
-          <strong>{run.baselineSelector}</strong>
+          <strong>{run.baselineSelector ?? "n/a"}</strong>
         </div>
         <div>
-          <span>Started</span>
-          <strong>{formatRunDate(run.createdAt)}</strong>
+          <span>Current signal</span>
+          <strong>{trace.signal}</strong>
         </div>
       </div>
 
-      <div className="runningSteps" aria-label="Recovery progress">
-        {RUN_STORY_PREVIEW.map(([index, title, summary], stepIndex) => (
+      <div className="liveTraceFlow" aria-label="Live recovery progress">
+        {trace.steps.map((step) => (
           <div
-            className={stepIndex === 0 ? "runningStep active" : "runningStep"}
-            key={index}
+            className={`traceNode ${step.status}`}
+            key={step.id}
           >
-            <span>{index}</span>
+            <span>{step.index}</span>
             <div>
-              <strong>{title}</strong>
-              <p>{summary}</p>
+              <strong>{step.title}</strong>
+              <p>{step.summary}</p>
             </div>
           </div>
         ))}
       </div>
+
+      <div className="liveTraceWorkbench">
+        <section className="traceFocus" aria-label="Active recovery stage">
+          <div className="traceFocusHeader">
+            <span className={`tracePulse ${trace.activeStatus}`} />
+            <div>
+              <span>{trace.activeStep.index} active stage</span>
+              <strong>{trace.activeEvent?.title ?? trace.activeStep.liveLabel}</strong>
+            </div>
+          </div>
+          <p>{trace.activeEvent?.detail ?? trace.activeStep.summary}</p>
+          <div className="traceSignalBars" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+            <span />
+          </div>
+        </section>
+
+        <section className="traceArtifactGrid" aria-label="Live run artifacts">
+          {trace.artifacts.map((artifact) => (
+            <div key={artifact.label}>
+              <span>{artifact.label}</span>
+              <strong>{artifact.value}</strong>
+            </div>
+          ))}
+        </section>
+
+        <section className="liveEventLog" aria-label="Live event log">
+          <div className="panelActionRow">
+            <span>Live trace</span>
+            <strong>{trace.eventCount} events</strong>
+          </div>
+          <div>
+            {trace.events.map((event) => (
+              <div className={`liveEvent ${event.status}`} key={`${event.key}-${event.timestamp}`}>
+                <span>{formatRunDate(event.timestamp)}</span>
+                <strong>{event.title}</strong>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
     </article>
   );
+}
+
+function getLiveTraceState(run: SerializedRun) {
+  const timeline = run.report.timeline ?? [];
+  const activeEvent =
+    [...timeline].reverse().find((event) => event.status === "running") ??
+    timeline[timeline.length - 1] ??
+    null;
+  const activeStepId = activeEvent ? getTraceStepId(activeEvent) : "playwright";
+  const activeStep =
+    LIVE_TRACE_STEPS.find((step) => step.id === activeStepId) ?? LIVE_TRACE_STEPS[0];
+  const activeIndex = LIVE_TRACE_STEPS.findIndex((step) => step.id === activeStep.id);
+  const steps = LIVE_TRACE_STEPS.map((step) => ({
+    ...step,
+    status: getTraceStepStatus(step.id, timeline, activeStep.id)
+  }));
+  const completedCount = steps.filter((step) => step.status === "completed").length;
+  const hasRunning = steps.some((step) => step.status === "running");
+  const progress = Math.min(
+    100,
+    Math.max(
+      8,
+      ((completedCount + (hasRunning ? 0.48 : 0)) / LIVE_TRACE_STEPS.length) * 100
+    )
+  );
+
+  return {
+    activeEvent,
+    activeStatus: activeEvent?.status ?? "running",
+    activeStep,
+    artifacts: getRunningArtifacts(run),
+    eventCount: timeline.length,
+    events: timeline.slice(-5).reverse(),
+    progress,
+    signal: getActiveSignal(run, activeStep.id, activeIndex),
+    steps
+  };
+}
+
+function getTraceStepStatus(
+  stepId: TraceStepId,
+  timeline: RunTimelineEvent[],
+  activeStepId: TraceStepId
+): LiveTraceStepStatus {
+  const events = timeline.filter((event) => getTraceStepId(event) === stepId);
+
+  if (events.some((event) => event.status === "running")) {
+    return "running";
+  }
+
+  if (events.some((event) => isTraceFailure(event))) {
+    return "failed";
+  }
+
+  if (events.some((event) => isTraceCompletion(event))) {
+    return "completed";
+  }
+
+  if (stepId === activeStepId) {
+    return "running";
+  }
+
+  return "pending";
+}
+
+function getTraceStepId(event: RunTimelineEvent): TraceStepId {
+  const key = event.key.toLowerCase();
+  const title = event.title.toLowerCase();
+  const combined = `${key} ${title}`;
+
+  if (/jira/.test(combined)) {
+    return "jira";
+  }
+
+  if (/rerun|patch|validation|candidate|proof|safe-patch/.test(combined)) {
+    return "proof";
+  }
+
+  if (/openai|ai-verdict|verdict/.test(combined)) {
+    return "openai";
+  }
+
+  if (/openspec|guardrail/.test(combined)) {
+    return "openspec";
+  }
+
+  if (/evidence|dom|screenshot/.test(combined)) {
+    return "evidence";
+  }
+
+  return "playwright";
+}
+
+function isTraceFailure(event: RunTimelineEvent) {
+  if (event.key === "playwright-baseline-failed") {
+    return false;
+  }
+
+  return event.status === "failed";
+}
+
+function isTraceCompletion(event: RunTimelineEvent) {
+  return event.status === "completed" || event.key === "playwright-baseline-failed";
+}
+
+function getActiveSignal(
+  run: SerializedRun,
+  activeStepId: TraceStepId,
+  activeIndex: number
+) {
+  if (activeStepId === "evidence") {
+    return `${run.report.evidence?.candidateCount ?? 0} candidates`;
+  }
+
+  if (activeStepId === "openai") {
+    return run.report.ai?.verdict ?? run.report.ai?.status ?? "awaiting verdict";
+  }
+
+  if (activeStepId === "proof") {
+    return run.report.rerun?.passed
+      ? "rerun passed"
+      : run.report.validation?.passed
+        ? "candidate valid"
+        : "validating";
+  }
+
+  if (activeStepId === "jira") {
+    return run.verdict ?? "handoff";
+  }
+
+  return `${Math.max(activeIndex + 1, 1)} of ${LIVE_TRACE_STEPS.length}`;
+}
+
+function getRunningArtifacts(run: SerializedRun) {
+  return [
+    {
+      label: "Evidence",
+      value: run.report.evidence
+        ? `${run.report.evidence.candidateCount} candidates`
+        : "pending"
+    },
+    {
+      label: "AI verdict",
+      value: run.report.ai?.verdict ?? run.report.ai?.status ?? "pending"
+    },
+    {
+      label: "Proof",
+      value: run.report.rerun?.passed
+        ? "rerun passed"
+        : run.report.validation?.passed
+          ? "selector valid"
+          : "pending"
+    },
+    {
+      label: "Outcome",
+      value: run.verdict ?? "running"
+    }
+  ];
 }
 
 function getRunTone(run: SerializedRun) {

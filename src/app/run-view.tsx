@@ -1591,7 +1591,7 @@ function getJiraSummary(run: SerializedRun, jira: JiraResultArtifact | null) {
 }
 
 function getDisplayTimeline(run: SerializedRun): RunTimelineEvent[] {
-  const timeline = run.report.timeline;
+  const timeline = settleHistoricalTimeline(run.report.timeline);
 
   if (run.verdict === "NO_HEAL_NEEDED") {
     return [
@@ -1630,6 +1630,21 @@ function getDisplayTimeline(run: SerializedRun): RunTimelineEvent[] {
   }
 
   return timeline;
+}
+
+function settleHistoricalTimeline(timeline: RunTimelineEvent[]): RunTimelineEvent[] {
+  return timeline.map((event, index) => {
+    const hasLaterEvent = index < timeline.length - 1;
+
+    if (hasLaterEvent && (event.status === "running" || event.status === "pending")) {
+      return {
+        ...event,
+        status: "completed"
+      };
+    }
+
+    return event;
+  });
 }
 
 function cleanDisplayText(value: string) {
