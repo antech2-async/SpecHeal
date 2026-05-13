@@ -75,6 +75,8 @@ type RunReportViewProps = {
   mode: "dashboard" | "full";
 };
 
+type ReportDetailPanel = "evidence" | "patch" | "jira";
+
 const TOKEN_PRICING_SOURCE =
   "OpenAI API pricing for gpt-4o-mini text tokens, checked 2026-05-12";
 
@@ -84,6 +86,7 @@ export function RunReportView({ run, artifacts, mode }: RunReportViewProps) {
   const verdictMeta = getVerdictMeta(run);
   const timeline = getDisplayTimeline(run);
   const [traceOpen, setTraceOpen] = useState(false);
+  const [detailPanel, setDetailPanel] = useState<ReportDetailPanel | null>(null);
 
   return (
     <article className={mode === "full" ? "reportPage" : "runReport"}>
@@ -98,7 +101,7 @@ export function RunReportView({ run, artifacts, mode }: RunReportViewProps) {
           <strong>{run.verdict ?? run.status}</strong>
           <small>{verdictMeta.caption}</small>
           <button className="reportAction" type="button" onClick={() => setTraceOpen(true)}>
-            Open AI trace
+            Inspect AI trace
           </button>
           {mode === "dashboard" && (run.status === "completed" || run.status === "failed") ? (
             <a className="reportAction" href={`/runs/${run.id}`}>
@@ -108,129 +111,151 @@ export function RunReportView({ run, artifacts, mode }: RunReportViewProps) {
         </div>
       </header>
 
-      <section className="metricStrip" aria-label="Run facts">
-        <Metric label="Scenario" value={run.scenarioId} />
-        <Metric label="Target" value={run.scenarioState} />
-        <Metric
-          label="AI confidence"
-          value={run.confidence == null ? "n/a" : `${Math.round(run.confidence * 100)}%`}
-        />
-        <Metric
-          label="Jira"
-          value={
-            latestJira?.issueKey ??
-            latestJira?.status ??
-            (run.verdict === "NO_HEAL_NEEDED" ? "not required" : "pending")
-          }
-        />
-      </section>
+      {mode === "dashboard" ? (
+        <>
+          <DashboardResultSummary jira={latestJira} run={run} />
 
-      <ExecutiveSummary jira={latestJira} run={run} />
+          <section className="dashboardInspectorActions" aria-label="Inspect run details">
+            <button type="button" onClick={() => setDetailPanel("evidence")}>
+              <span>Inspect evidence</span>
+              <strong>{getEvidenceActionLabel(run)}</strong>
+            </button>
+            <button type="button" onClick={() => setTraceOpen(true)}>
+              <span>AI trace</span>
+              <strong>{getTraceActionLabel(run, artifacts?.aiTrace ?? null)}</strong>
+            </button>
+            <button type="button" onClick={() => setDetailPanel("patch")}>
+              <span>Patch and proof</span>
+              <strong>{getProofSummary(run).value}</strong>
+            </button>
+            <button type="button" onClick={() => setDetailPanel("jira")}>
+              <span>Jira handoff</span>
+              <strong>{getJiraSummary(run, latestJira).value}</strong>
+            </button>
+          </section>
 
-      <DecisionStrip jira={latestJira} run={run} />
-
-      {run.verdict === "NO_HEAL_NEEDED" ? (
-        <div className="notice successNotice">
-          Healthy run persisted as an audit report. Jira publishing is not
-          required by default.
-        </div>
-      ) : null}
-
-      <section className="storyGrid" aria-label="Recovery story">
-        <div className="timeline" aria-label="Run timeline">
-          {timeline.map((event) => (
-            <div className={`timelineItem ${event.status}`} key={event.key}>
-              <span />
-              <div>
-                <strong>{event.title}</strong>
-                <p>{event.detail}</p>
-                <small>{formatRunDate(event.timestamp)}</small>
-              </div>
+          <section className="dashboardTimeline" aria-label="Run timeline">
+            <div className="panelActionRow">
+              <span>Recovery story</span>
+              <a className="textAction" href={`/runs/${run.id}`}>
+                Open full report
+              </a>
             </div>
-          ))}
-        </div>
-        <RunEvidenceShelf jira={latestJira} onOpenTrace={() => setTraceOpen(true)} run={run} />
-      </section>
-
-      <section className="reportGrid" aria-label="Run report panels">
-        <Panel eyebrow="01" title="Playwright">
-          {report.playwright ? (
-            <dl className="kvList">
-              <Row label="Result" value={report.playwright.passed ? "passed" : "failed"} />
-              <Row label="Selector" value={report.playwright.selectorUsed} />
-              <Row label="Duration" value={`${report.playwright.durationMs} ms`} />
-              {report.playwright.errorMessage ? (
-                <Row label="Error" value={report.playwright.errorMessage} />
-              ) : null}
-            </dl>
-          ) : (
-            <p className="emptyText">Waiting for browser execution.</p>
-          )}
-        </Panel>
-
-        <Panel eyebrow="02" title="OpenSpec">
-          <OpenSpecPanel clause={report.openSpec.clause} path={report.openSpec.path} />
-        </Panel>
-
-        <Panel eyebrow="03" title="Evidence">
-          {report.evidence ? (
-            <div className="evidenceStack">
-              {report.evidence.screenshotBase64 ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  alt="Captured Playwright failure screenshot"
-                  className="evidenceImage"
-                  src={`data:image/png;base64,${report.evidence.screenshotBase64}`}
-                />
-              ) : null}
-              <dl className="kvList">
-                <Row label="Failed selector" value={report.evidence.failedSelector} />
-                <Row label="Raw DOM" value={`${report.evidence.rawDomLength} chars`} />
-                <Row label="Clean DOM" value={`${report.evidence.cleanedDomLength} chars`} />
-                <Row label="Candidates" value={`${report.evidence.candidateCount}`} />
-              </dl>
-              <VisibleEvidencePanel evidence={report.evidence} />
-              <DomAuditPanel evidence={report.evidence} />
-              <CandidateList candidates={report.evidence.candidates} />
+            <div className="timeline compact">
+              {timeline.map((event) => (
+                <div className={`timelineItem ${event.status}`} key={event.key}>
+                  <span />
+                  <div>
+                    <strong>{event.title}</strong>
+                    <p>{event.detail}</p>
+                  </div>
+                </div>
+              ))}
             </div>
-          ) : (
-            <p className="emptyText">No failure evidence for this run.</p>
-          )}
-        </Panel>
+          </section>
+        </>
+      ) : (
+        <>
+          <section className="metricStrip" aria-label="Run facts">
+            <Metric label="Scenario" value={run.scenarioId} />
+            <Metric label="Target" value={run.scenarioState} />
+            <Metric
+              label="AI confidence"
+              value={run.confidence == null ? "n/a" : `${Math.round(run.confidence * 100)}%`}
+            />
+            <Metric
+              label="Jira"
+              value={
+                latestJira?.issueKey ??
+                latestJira?.status ??
+                (run.verdict === "NO_HEAL_NEEDED" ? "not required" : "pending")
+              }
+            />
+          </section>
 
-        <Panel eyebrow="04" title="Decision Output">
-          {report.output ? (
-            <div className="outputPanel">
-              <div className="panelActionRow">
-                <span>Reviewer handoff</span>
-                <CopyButton
-                  label="Copy summary"
-                  value={formatOutputForCopy(report.output)}
-                />
-              </div>
-              <strong>{report.output.title}</strong>
-              <p>{report.output.summary}</p>
-              <p>{report.output.recommendedAction}</p>
-              <ul>
-                {report.output.evidence.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-              <div className="notice">{report.output.safetyNote}</div>
+          <ExecutiveSummary jira={latestJira} run={run} />
+
+          <DecisionStrip jira={latestJira} run={run} />
+
+          {run.verdict === "NO_HEAL_NEEDED" ? (
+            <div className="notice successNotice">
+              Healthy run persisted as an audit report. Jira publishing is not
+              required by default.
             </div>
-          ) : (
-            <p className="emptyText">Decision output is not ready yet.</p>
-          )}
-        </Panel>
+          ) : null}
 
-        <Panel eyebrow="05" title="Proof">
-          <ProofPanel run={run} />
-        </Panel>
+          <section className="storyGrid" aria-label="Recovery story">
+            <div className="timeline" aria-label="Run timeline">
+              {timeline.map((event) => (
+                <div className={`timelineItem ${event.status}`} key={event.key}>
+                  <span />
+                  <div>
+                    <strong>{event.title}</strong>
+                    <p>{event.detail}</p>
+                    <small>{formatRunDate(event.timestamp)}</small>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <RunEvidenceShelf jira={latestJira} onOpenTrace={() => setTraceOpen(true)} run={run} />
+          </section>
 
-        <Panel eyebrow="06" title="Jira">
-          <JiraPanel jira={latestJira} run={run} />
-        </Panel>
-      </section>
+          <div className="reportSectionHeader">
+            <div>
+              <span>Detailed audit</span>
+              <h3>Evidence, guardrails, proof, and handoff</h3>
+            </div>
+            <p>
+              Raw prompts, DOM excerpts, and payloads stay collapsed until they
+              are needed for review.
+            </p>
+          </div>
+
+          <section className="reportGrid" aria-label="Run report panels">
+            <Panel eyebrow="01" title="Playwright">
+              {report.playwright ? (
+                <dl className="kvList">
+                  <Row label="Result" value={report.playwright.passed ? "passed" : "failed"} />
+                  <Row label="Selector" value={report.playwright.selectorUsed} />
+                  <Row label="Duration" value={`${report.playwright.durationMs} ms`} />
+                  {report.playwright.errorMessage ? (
+                    <Row label="Error" value={report.playwright.errorMessage} />
+                  ) : null}
+                </dl>
+              ) : (
+                <p className="emptyText">Waiting for browser execution.</p>
+              )}
+            </Panel>
+
+            <Panel eyebrow="02" title="OpenSpec">
+              <OpenSpecPanel clause={report.openSpec.clause} path={report.openSpec.path} />
+            </Panel>
+
+            <Panel eyebrow="03" title="Evidence">
+              <EvidencePanel run={run} />
+            </Panel>
+
+            <Panel eyebrow="04" title="Decision Output">
+              <DecisionOutputPanel run={run} />
+            </Panel>
+
+            <Panel eyebrow="05" title="Proof">
+              <ProofPanel run={run} />
+            </Panel>
+
+            <Panel eyebrow="06" title="Jira">
+              <JiraPanel jira={latestJira} run={run} />
+            </Panel>
+          </section>
+        </>
+      )}
+
+      <RunDetailDrawer
+        jira={latestJira}
+        onClose={() => setDetailPanel(null)}
+        openPanel={detailPanel}
+        run={run}
+      />
 
       <AiTracePanel
         aiTrace={artifacts?.aiTrace ?? null}
@@ -239,6 +264,115 @@ export function RunReportView({ run, artifacts, mode }: RunReportViewProps) {
         run={run}
       />
     </article>
+  );
+}
+
+function DashboardResultSummary({
+  jira,
+  run
+}: {
+  jira: JiraResultArtifact | null;
+  run: SerializedRun;
+}) {
+  const verdictMeta = getVerdictMeta(run);
+  const proofSummary = getProofSummary(run);
+  const jiraSummary = getJiraSummary(run, jira);
+  const cards = [
+    {
+      detail: verdictMeta.caption,
+      label: "Verdict",
+      tone: verdictMeta.tone,
+      value: run.verdict ?? run.status
+    },
+    {
+      detail: run.reason ?? verdictMeta.summary,
+      label: "Why",
+      tone: "neutral" as const,
+      value: verdictMeta.title
+    },
+    {
+      detail: proofSummary.detail,
+      label: "Proof",
+      tone: proofSummary.tone,
+      value: proofSummary.value
+    },
+    {
+      detail: jiraSummary.detail,
+      label: "Jira",
+      tone: jiraSummary.tone,
+      value: jiraSummary.value
+    }
+  ];
+
+  return (
+    <section className="resultSummaryGrid" aria-label="Run summary">
+      {cards.map((item) => (
+        <div className={`summaryCard ${item.tone}`} key={item.label}>
+          <span>{item.label}</span>
+          <strong>{item.value}</strong>
+          <p>{item.detail}</p>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function EvidencePanel({ run }: { run: SerializedRun }) {
+  const evidence = run.report.evidence;
+
+  if (!evidence) {
+    return <p className="emptyText">No failure evidence for this run.</p>;
+  }
+
+  return (
+    <div className="evidenceStack">
+      {evidence.screenshotBase64 ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          alt="Captured Playwright failure screenshot"
+          className="evidenceImage"
+          src={`data:image/png;base64,${evidence.screenshotBase64}`}
+        />
+      ) : null}
+      <dl className="kvList">
+        <Row label="Failed selector" value={evidence.failedSelector} />
+        <Row label="Raw DOM" value={`${evidence.rawDomLength} chars`} />
+        <Row label="Clean DOM" value={`${evidence.cleanedDomLength} chars`} />
+        <Row label="Candidates" value={`${evidence.candidateCount}`} />
+      </dl>
+      <VisibleEvidencePanel evidence={evidence} />
+      <DomAuditPanel evidence={evidence} />
+      <CandidateList candidates={evidence.candidates} />
+    </div>
+  );
+}
+
+function DecisionOutputPanel({ run }: { run: SerializedRun }) {
+  const output = run.report.output;
+
+  if (!output) {
+    return <p className="emptyText">Decision output is not ready yet.</p>;
+  }
+
+  return (
+    <div className="outputPanel">
+      <div className="panelActionRow">
+        <span>Reviewer handoff</span>
+        <CopyButton
+          label="Copy summary"
+          value={formatOutputForCopy(output)}
+        />
+      </div>
+      <strong>{output.title}</strong>
+      <p>{output.summary}</p>
+      <p>{output.recommendedAction}</p>
+      <ul>
+        {output.evidence.map((item) => (
+          <li key={item}>{item}</li>
+        ))}
+      </ul>
+      <div className="notice">{output.safetyNote}</div>
+    </div>
   );
 }
 
@@ -894,6 +1028,100 @@ function JiraPanel({
   );
 }
 
+function RunDetailDrawer({
+  jira,
+  onClose,
+  openPanel,
+  run
+}: {
+  jira: JiraResultArtifact | null;
+  onClose: () => void;
+  openPanel: ReportDetailPanel | null;
+  run: SerializedRun;
+}) {
+  useEffect(() => {
+    if (!openPanel) {
+      return;
+    }
+
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    }
+
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [onClose, openPanel]);
+
+  if (!openPanel) {
+    return null;
+  }
+
+  const config = getDetailPanelConfig(openPanel);
+
+  return (
+    <div className="traceOverlay" role="presentation" onMouseDown={onClose}>
+      <section
+        aria-label={config.title}
+        aria-modal="true"
+        className="traceDrawer detailDrawer"
+        role="dialog"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <header className="traceHeader">
+          <div>
+            <p className="eyebrow">{config.eyebrow}</p>
+            <span>{config.title}</span>
+            <small>{config.summary}</small>
+          </div>
+          <button aria-label="Close detail drawer" className="traceClose" type="button" onClick={onClose}>
+            Close
+          </button>
+        </header>
+
+        {openPanel === "evidence" ? <EvidencePanel run={run} /> : null}
+        {openPanel === "patch" ? (
+          <div className="drawerStack">
+            <ProofPanel run={run} />
+            <DecisionOutputPanel run={run} />
+          </div>
+        ) : null}
+        {openPanel === "jira" ? (
+          <div className="drawerStack">
+            <JiraPanel jira={jira} run={run} />
+            <DecisionOutputPanel run={run} />
+          </div>
+        ) : null}
+      </section>
+    </div>
+  );
+}
+
+function getDetailPanelConfig(panel: ReportDetailPanel) {
+  if (panel === "evidence") {
+    return {
+      eyebrow: "Evidence",
+      summary: "Failure screenshot, visible page facts, cleaned DOM audit, and ranked candidate selectors.",
+      title: "Inspect captured evidence"
+    };
+  }
+
+  if (panel === "patch") {
+    return {
+      eyebrow: "Proof",
+      summary: "Validation, rerun, patch safety, and reviewer-ready output for this run.",
+      title: "Patch and proof"
+    };
+  }
+
+  return {
+    eyebrow: "Jira",
+    summary: "Publishing state, payload summary, retry controls, and reviewer handoff.",
+    title: "Jira handoff"
+  };
+}
+
 function AiTracePanel({
   aiTrace,
   onClose,
@@ -1220,6 +1448,146 @@ function getDecisionSummary(run: SerializedRun, jira: JiraResultArtifact | null)
   }
 
   return "Waiting for verdict";
+}
+
+function getEvidenceActionLabel(run: SerializedRun) {
+  const evidence = run.report.evidence;
+
+  if (!evidence) {
+    return run.report.playwright?.passed ? "Baseline passed" : "No evidence yet";
+  }
+
+  return `${evidence.candidateCount} candidate${
+    evidence.candidateCount === 1 ? "" : "s"
+  }`;
+}
+
+function getTraceActionLabel(run: SerializedRun, aiTrace: AiTraceArtifact | null) {
+  if (aiTrace) {
+    return aiTrace.totalTokens == null
+      ? aiTrace.model
+      : `${formatMaybeNumber(aiTrace.totalTokens)} tokens`;
+  }
+
+  if (run.verdict === "NO_HEAL_NEEDED") {
+    return "Skipped by baseline";
+  }
+
+  return "Open audit";
+}
+
+function getProofSummary(run: SerializedRun) {
+  const report = run.report;
+
+  if (run.verdict === "HEAL") {
+    if (report.rerun?.passed) {
+      return {
+        detail: `Patched test reached ${report.rerun.expectedText}.`,
+        tone: "positive" as const,
+        value: "Rerun passed"
+      };
+    }
+
+    if (report.validation?.passed) {
+      return {
+        detail: `Candidate ${report.validation.selector} matched and was clickable.`,
+        tone: "positive" as const,
+        value: "Candidate validated"
+      };
+    }
+
+    return {
+      detail: "SpecHeal is waiting for browser validation and rerun proof.",
+      tone: "neutral" as const,
+      value: "Proof pending"
+    };
+  }
+
+  if (run.verdict === "PRODUCT BUG") {
+    return {
+      detail: "OpenSpec-required behavior is unavailable, so selector healing is blocked.",
+      tone: "negative" as const,
+      value: "Patch blocked"
+    };
+  }
+
+  if (run.verdict === "NO_HEAL_NEEDED") {
+    return {
+      detail: "The original Playwright selector reached Payment Success.",
+      tone: "positive" as const,
+      value: "Baseline passed"
+    };
+  }
+
+  if (run.verdict === "SPEC OUTDATED") {
+    return {
+      detail: "The test/spec mapping needs human review before a safe patch.",
+      tone: "warning" as const,
+      value: "Review required"
+    };
+  }
+
+  if (run.verdict === "RUN_ERROR" || run.status === "failed") {
+    return {
+      detail: run.errorMessage ?? "The run stopped before trusted proof was produced.",
+      tone: "negative" as const,
+      value: "Run failed"
+    };
+  }
+
+  return {
+    detail: "SpecHeal is still collecting run evidence.",
+    tone: "neutral" as const,
+    value: "Pending"
+  };
+}
+
+function getJiraSummary(run: SerializedRun, jira: JiraResultArtifact | null) {
+  if (jira?.issueKey) {
+    return {
+      detail: jira.issueUrl ?? jira.payloadSummary ?? "Issue created for this recovery outcome.",
+      tone: "positive" as const,
+      value: jira.issueKey
+    };
+  }
+
+  if (jira?.status === "jira_publish_failed") {
+    return {
+      detail: jira.errorMessage ?? "Publishing failed and can be retried from the Jira panel.",
+      tone: "negative" as const,
+      value: "Publish failed"
+    };
+  }
+
+  if (jira?.status) {
+    return {
+      detail: jira.payloadSummary ?? "Jira publishing state was persisted with this run.",
+      tone: jira.status === "not_required" ? "neutral" as const : "warning" as const,
+      value: jira.status
+    };
+  }
+
+  if (run.verdict === "NO_HEAL_NEEDED") {
+    return {
+      detail: "Healthy audit runs do not create Jira issues by default.",
+      tone: "neutral" as const,
+      value: "Not required"
+    };
+  }
+
+  if (run.status === "completed" || run.status === "failed") {
+    return {
+      detail: "Actionable outcomes should publish or expose retry context.",
+      tone: "warning" as const,
+      value: "Check handoff"
+    };
+  }
+
+  return {
+    detail: "Jira status will appear after the run reaches a terminal outcome.",
+    tone: "neutral" as const,
+    value: "Pending"
+  };
 }
 
 function getDisplayTimeline(run: SerializedRun): RunTimelineEvent[] {

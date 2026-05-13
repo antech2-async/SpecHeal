@@ -1,8 +1,11 @@
-import { desc, eq } from "drizzle-orm";
-import { getDb } from "@/db";
-import { jiraPublishResults, spechealRuns, type SpecHealRun } from "@/db/schema";
+import { jiraPublishResults, type SpecHealRun } from "@/db/schema";
 import { getAppBaseUrl, readJiraEnv } from "@/lib/env";
 import { normalizeRunReport } from "./run-report";
+import {
+  createJiraPublishResult,
+  findRecoveryRun,
+  getLatestJiraPublishResult
+} from "./runs";
 
 type JiraIssueType = "Task" | "Bug";
 type JiraPublishMode = "auto" | "retry";
@@ -66,7 +69,11 @@ export async function publishRunToJira(
       payload,
       errorCode: "JIRA_NOT_CONFIGURED",
       errorMessage:
-        error instanceof Error ? error.message : "Jira is not configured."
+        error instanceof Error && error.name === "ZodError"
+          ? "Jira is not configured. Set JIRA_SITE_URL, JIRA_USER_EMAIL, JIRA_API_TOKEN, and JIRA_PROJECT_KEY before publishing issues."
+          : error instanceof Error
+            ? error.message
+            : "Jira is not configured."
     });
   }
 
@@ -270,35 +277,17 @@ function buildAdfDescription(options: {
 }
 
 async function findRun(runId: string) {
-  const [run] = await getDb()
-    .select()
-    .from(spechealRuns)
-    .where(eq(spechealRuns.id, runId))
-    .limit(1);
-
-  return run ?? null;
+  return findRecoveryRun(runId);
 }
 
 async function latestJiraResult(runId: string) {
-  const [result] = await getDb()
-    .select()
-    .from(jiraPublishResults)
-    .where(eq(jiraPublishResults.runId, runId))
-    .orderBy(desc(jiraPublishResults.createdAt))
-    .limit(1);
-
-  return result ?? null;
+  return getLatestJiraPublishResult(runId);
 }
 
 async function createJiraResult(
   values: typeof jiraPublishResults.$inferInsert
 ) {
-  const [result] = await getDb()
-    .insert(jiraPublishResults)
-    .values(values)
-    .returning();
-
-  return result;
+  return createJiraPublishResult(values);
 }
 
 function heading(text: string, level: number): AdfNode {

@@ -24,12 +24,12 @@ type RunResponse = {
 };
 
 const RUN_STORY_PREVIEW = [
-  ["01", "Playwright", "Run the checkout behavior in a real browser."],
-  ["02", "Evidence", "Capture screenshot, DOM, visible text, and candidates."],
-  ["03", "OpenSpec", "Load behavior-first checkout requirements as guardrail."],
-  ["04", "OpenAI", "Classify HEAL, PRODUCT BUG, or report-only healthy run."],
-  ["05", "Proof", "Validate and rerun only when a safe HEAL patch exists."],
-  ["06", "Jira", "Publish actionable results into the configured project."]
+  ["01", "Playwright", "Run the seeded checkout behavior in a real browser."],
+  ["02", "Evidence", "Capture failure screenshot, visible text, DOM, and candidates."],
+  ["03", "OpenSpec", "Compare the failure against selector-agnostic requirements."],
+  ["04", "OpenAI", "Ask for a structured recovery verdict with transparent trace."],
+  ["05", "Proof", "Validate candidate selectors and rerun only when HEAL is safe."],
+  ["06", "Jira", "Publish actionable HEAL, bug, spec, or runtime follow-up."]
 ] as const;
 
 const SCENARIO_OUTCOMES: Record<string, { tone: string; value: string }> = {
@@ -56,6 +56,10 @@ export function Dashboard({ initialRuns, readiness, scenarios }: DashboardProps)
   );
   const isRunning =
     currentRun?.status === "pending" || currentRun?.status === "running";
+  const missingRuntimeCount = readiness.filter((item) => !item.ready).length;
+  const selectedTargetUrl = `/shopflow?state=${
+    selectedScenario?.runtimeState ?? "normal"
+  }`;
 
   const loadRecentRuns = useCallback(async () => {
     try {
@@ -131,8 +135,8 @@ export function Dashboard({ initialRuns, readiness, scenarios }: DashboardProps)
           <p className="eyebrow">SpecHeal</p>
           <h1>Recovery cockpit</h1>
           <p>
-            Run a ShopFlow checkout scenario, inspect the OpenSpec-guarded
-            verdict, and follow the evidence through Jira handoff.
+            Prove whether a ShopFlow checkout failure should be healed, escalated,
+            or recorded as a healthy audit run.
           </p>
         </div>
         <div className="projectBadge">
@@ -147,12 +151,12 @@ export function Dashboard({ initialRuns, readiness, scenarios }: DashboardProps)
           <strong>{selectedScenario?.title ?? "Select scenario"}</strong>
         </div>
         <div>
-          <span>Expected decision</span>
+          <span>Expected outcome</span>
           <strong>{selectedScenario ? SCENARIO_OUTCOMES[selectedScenario.id]?.value : "Decision"}</strong>
         </div>
         <div>
           <span>Target route</span>
-          <strong>/shopflow?state={selectedScenario?.runtimeState ?? "normal"}</strong>
+          <strong>{selectedTargetUrl}</strong>
         </div>
         <div className={isRunning ? "active" : currentRun ? getRunTone(currentRun) : ""}>
           <span>Run state</span>
@@ -160,31 +164,178 @@ export function Dashboard({ initialRuns, readiness, scenarios }: DashboardProps)
         </div>
       </section>
 
-      <section className="demoThesis" aria-label="Demo decision model">
-        <div>
-          <span>Question</span>
-          <strong>Should this failed UI test be healed?</strong>
-        </div>
-        <div>
-          <span>Guardrail</span>
-          <strong>OpenSpec checks product behavior before any patch is trusted.</strong>
-        </div>
-        <div>
-          <span>Proof</span>
-          <strong>Browser validation and rerun decide whether the patch is safe.</strong>
-        </div>
-      </section>
-
-      <section className="readiness" aria-label="Runtime readiness">
-        {readiness.map((item) => (
-          <div className="readinessItem" key={item.name}>
-            <span className={item.ready ? "dot ready" : "dot missing"} />
-            <div>
-              <strong>{item.name}</strong>
-              <p>{item.message}</p>
+      <section className="workbench">
+        <aside className="scenarioRail" aria-label="Scenario picker">
+          <div className="controlPanel">
+            <div className="controlPanelHeader">
+              <div>
+                <p className="eyebrow">Demo control</p>
+                <h2>ShopFlow Checkout</h2>
+                <p>
+                  Choose a seeded state, run one recovery proof, then inspect the
+                  verdict trail only where it matters.
+                </p>
+              </div>
+              <span className={isRunning ? "statusPill active" : "statusPill"}>
+                {getCurrentRunLabel(currentRun, isRunning)}
+              </span>
             </div>
+
+            <button
+              className="primaryAction"
+              type="button"
+              disabled={loading || isRunning || !selectedScenario}
+              onClick={startRun}
+            >
+              {loading
+                ? "Starting proof"
+                : isRunning
+                  ? "Running proof"
+                  : "Run recovery proof"}
+            </button>
+
+            <div className="selectedRunLine">
+              <span className="dot ready" />
+              <span>
+                Selected: <strong>{selectedScenario?.title ?? "Scenario"}</strong>
+              </span>
+            </div>
+
+            <div className="panelHeader scenarioHeader">
+              <span>Scenarios</span>
+              <a href={selectedTargetUrl}>Open ShopFlow</a>
+            </div>
+            <div className="scenarioPicker">
+              {scenarios.map((scenario) => (
+                <button
+                  className={
+                    selectedScenario?.id === scenario.id
+                      ? "scenarioOption active"
+                      : "scenarioOption"
+                  }
+                  key={scenario.id}
+                  type="button"
+                  onClick={() => setSelectedScenarioId(scenario.id)}
+                >
+                  <em className={`scenarioOutcome ${SCENARIO_OUTCOMES[scenario.id]?.tone ?? "neutral"}`}>
+                    {SCENARIO_OUTCOMES[scenario.id]?.value ?? "Decision"}
+                  </em>
+                  <span>{scenario.title}</span>
+                  <strong>{scenario.label}</strong>
+                  <small>{scenario.summary}</small>
+                </button>
+              ))}
+            </div>
+
+            <div className="controlMetaGrid" aria-label="Selected scenario facts">
+              <div>
+                <span>Target</span>
+                <strong>{selectedTargetUrl}</strong>
+              </div>
+              <div>
+                <span>Selector</span>
+                <strong>{selectedScenario?.oldSelector ?? "n/a"}</strong>
+              </div>
+              <div>
+                <span>Guardrail</span>
+                <strong>OpenSpec</strong>
+              </div>
+              <div className={missingRuntimeCount ? "warning" : "positive"}>
+                <span>Runtime</span>
+                <strong>
+                  {missingRuntimeCount
+                    ? `${missingRuntimeCount} missing`
+                    : "Ready"}
+                </strong>
+              </div>
+            </div>
+
+            <details className="guardrailDetails">
+              <summary>
+                <span>OpenSpec guardrail</span>
+                <strong>Behavior first, selector second</strong>
+              </summary>
+              <p>
+                SpecHeal checks whether checkout payment behavior still exists
+                before trusting any replacement locator.
+              </p>
+            </details>
+
+            <div className="readinessPills" aria-label="Runtime readiness">
+              {readiness.map((item) => (
+                <span
+                  className={item.ready ? "readinessPill ready" : "readinessPill missing"}
+                  key={item.name}
+                  title={item.message}
+                >
+                  <span className={item.ready ? "dot ready" : "dot missing"} />
+                  {item.name}
+                </span>
+              ))}
+            </div>
+
+            {message ? <p className="inlineError">{message}</p> : null}
           </div>
-        ))}
+        </aside>
+
+        <section className="runStage" aria-label="Current run">
+          {currentRun && isRunning ? (
+            <RunningRunPanel run={currentRun} selectedScenarioTitle={selectedScenario?.title ?? currentRun.scenarioId} />
+          ) : currentRun ? (
+            <RunReportView
+              artifacts={currentArtifacts}
+              mode="dashboard"
+              run={currentRun}
+            />
+          ) : (
+            <div className="emptyState">
+              <div className="emptyStateHeader">
+                <p className="eyebrow">Ready</p>
+                <h2>{selectedScenario?.title ?? "Select a scenario"}</h2>
+                <p>{selectedScenario?.summary}</p>
+              </div>
+              <div className="selectedScenarioBrief">
+                <div>
+                  <span>Baseline selector</span>
+                  <strong>{selectedScenario?.oldSelector ?? "n/a"}</strong>
+                </div>
+                <div>
+                  <span>Expected behavior</span>
+                  <strong>{selectedScenario?.expectedText ?? "Payment Success"}</strong>
+                </div>
+                <div>
+                  <span>Expected outcome</span>
+                  <strong>{selectedScenario ? SCENARIO_OUTCOMES[selectedScenario.id]?.value : "Decision"}</strong>
+                </div>
+              </div>
+              <section className="demoThesis" aria-label="Demo decision model">
+                <div>
+                  <span>Question</span>
+                  <strong>Should this failed UI test be healed?</strong>
+                </div>
+                <div>
+                  <span>Guardrail</span>
+                  <strong>OpenSpec checks product behavior before any patch is trusted.</strong>
+                </div>
+                <div>
+                  <span>Proof</span>
+                  <strong>Browser validation and rerun decide whether the patch is safe.</strong>
+                </div>
+              </section>
+              <div className="previewFlow" aria-label="SpecHeal run preview">
+                {RUN_STORY_PREVIEW.map(([index, title, summary]) => (
+                  <div className="previewStep" key={index}>
+                    <span>{index}</span>
+                    <div>
+                      <strong>{title}</strong>
+                      <p>{summary}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
       </section>
 
       <section className="recentRuns" aria-label="Recent recovery runs">
@@ -212,90 +363,6 @@ export function Dashboard({ initialRuns, readiness, scenarios }: DashboardProps)
             ))}
           </div>
         )}
-      </section>
-
-      <section className="workbench">
-        <aside className="scenarioRail" aria-label="Scenario picker">
-          <div className="panelHeader">
-            <span>Scenarios</span>
-            <a href="/shopflow?state=normal">Open target</a>
-          </div>
-          <div className="scenarioPicker">
-            {scenarios.map((scenario) => (
-              <button
-                className={
-                  selectedScenario?.id === scenario.id
-                    ? "scenarioOption active"
-                    : "scenarioOption"
-                }
-                key={scenario.id}
-                type="button"
-                onClick={() => setSelectedScenarioId(scenario.id)}
-              >
-                <em className={`scenarioOutcome ${SCENARIO_OUTCOMES[scenario.id]?.tone ?? "neutral"}`}>
-                  {SCENARIO_OUTCOMES[scenario.id]?.value ?? "Decision"}
-                </em>
-                <span>{scenario.title}</span>
-                <strong>{scenario.label}</strong>
-                <small>{scenario.summary}</small>
-              </button>
-            ))}
-          </div>
-          <button
-            className="primaryAction"
-            type="button"
-            disabled={loading || isRunning || !selectedScenario}
-            onClick={startRun}
-          >
-            {loading ? "Starting run" : isRunning ? "Running recovery" : "Start SpecHeal run"}
-          </button>
-          {message ? <p className="inlineError">{message}</p> : null}
-        </aside>
-
-        <section className="runStage" aria-label="Current run">
-          {currentRun && isRunning ? (
-            <RunningRunPanel run={currentRun} selectedScenarioTitle={selectedScenario?.title ?? currentRun.scenarioId} />
-          ) : currentRun ? (
-            <RunReportView
-              artifacts={currentArtifacts}
-              mode="dashboard"
-              run={currentRun}
-            />
-          ) : (
-            <div className="emptyState">
-              <div>
-                <p className="eyebrow">Ready</p>
-                <h2>{selectedScenario?.title ?? "Select a scenario"}</h2>
-                <p>{selectedScenario?.summary}</p>
-              </div>
-              <div className="selectedScenarioBrief">
-                <div>
-                  <span>Baseline selector</span>
-                  <strong>{selectedScenario?.oldSelector ?? "n/a"}</strong>
-                </div>
-                <div>
-                  <span>Expected behavior</span>
-                  <strong>{selectedScenario?.expectedText ?? "Payment Success"}</strong>
-                </div>
-                <div>
-                  <span>Expected decision</span>
-                  <strong>{selectedScenario ? SCENARIO_OUTCOMES[selectedScenario.id]?.value : "Decision"}</strong>
-                </div>
-              </div>
-              <div className="previewFlow" aria-label="SpecHeal run preview">
-                {RUN_STORY_PREVIEW.map(([index, title, summary]) => (
-                  <div className="previewStep" key={index}>
-                    <span>{index}</span>
-                    <div>
-                      <strong>{title}</strong>
-                      <p>{summary}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </section>
       </section>
     </main>
   );

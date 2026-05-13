@@ -4,6 +4,6 @@ const shopflowState = process.env.SHOPFLOW_STATE || "normal";
 
 test("shopflow checkout should complete payment", async ({ page }) => {
   await page.goto(`/shopflow?state=${shopflowState}`);
-  await page.click("#pay-now");
+  await page.getByTestId("complete-payment").click();
   await expect(page.getByText("Payment Success")).toBeVisible();
 });

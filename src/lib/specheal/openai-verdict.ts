@@ -73,7 +73,9 @@ export async function generateOpenAIVerdict({
     env = readOpenAIEnv();
   } catch (error) {
     const message =
-      error instanceof Error
+      error instanceof z.ZodError
+        ? "OpenAI is not configured. Set OPENAI_API_KEY before running recovery scenarios that need an AI verdict."
+        : error instanceof Error
         ? error.message
         : "OpenAI environment is not configured.";
 
